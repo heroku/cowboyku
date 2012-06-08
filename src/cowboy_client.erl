@@ -32,6 +32,7 @@
 -export([stream_header/1]).
 -export([stream_body/1]).
 
+-export([request_to_iolist/6]).
 -record(client, {
 	state = wait :: wait | request | response | response_body,
 	opts = [] :: [any()],
@@ -99,18 +100,23 @@ request(Method, URL, Headers, Body, Client=#client{
 		wait -> connect(Transport, Host, Port, Client);
 		request -> {ok, Client}
 	end,
+	Data = request_to_iolist(Method, Headers, Body, Version, FullHost,
+	                         Path),
+	raw_request(Data, Client2).
+
+request_to_iolist(Method, Headers, Body, Version, FullHost, Path) ->
 	VersionBin = cowboy_http:version_to_binary(Version),
 	%% @todo do keepalive too, allow override...
 	Headers2 = [{<<"host">>, FullHost} | Headers],
 	Headers3 = case iolist_size(Body) of
-		0 -> Headers2;
-		Length -> [{<<"content-length">>, integer_to_list(Length)}|Headers2]
-	end,
+				   0 -> Headers2;
+				   Length -> [{<<"content-length">>, integer_to_list(Length)}
+							  | Headers2]
+			   end,
 	HeadersData = [[Name, <<": ">>, Value, <<"\r\n">>]
-		|| {Name, Value} <- Headers3],
-	Data = [Method, <<" ">>, Path, <<" ">>, VersionBin, <<"\r\n">>,
-		HeadersData, <<"\r\n">>, Body],
-	raw_request(Data, Client2).
+				   || {Name, Value} <- Headers3],
+	[Method, <<" ">>, Path, <<" ">>, VersionBin, <<"\r\n">>,
+	 HeadersData, <<"\r\n">>, Body].
 
 parse_url(<< "https://", Rest/binary >>) ->
 	parse_url(Rest, cowboy_ssl_transport);
