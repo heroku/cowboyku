@@ -33,6 +33,9 @@
 -export([stream_body/1]).
 
 -export([request_to_iolist/6]).
+-export([auth_header/1]).
+
+
 -record(client, {
 	state = wait :: wait | request | response | response_body,
 	opts = [] :: [any()],
@@ -279,3 +282,23 @@ stream_body(Client=#client{state=response_body, buffer=Buffer,
 
 recv(#client{socket=Socket, transport=Transport, timeout=Timeout}) ->
 	Transport:recv(Socket, 0, Timeout).
+
+auth_header("") ->
+	[];
+auth_header(AuthInfo) when is_list(AuthInfo) ->
+	[{<<"Authorization">>,
+	  case string:tokens(AuthInfo, ":") of
+		  [User, Pass] ->
+			  encode_auth_header(User, Pass);
+		  [User] ->
+			  encode_auth_header(User)
+	  end}].
+
+%% @private
+encode_auth_header(User) ->
+	encode_auth_header(User, "").
+
+%% @private
+encode_auth_header(User, Pass)
+  when is_list(User), is_list(Pass) ->
+	["Basic ", base64:encode(User ++ ":" ++ Pass)].
