@@ -44,6 +44,9 @@
 	response_body = undefined :: undefined | non_neg_integer()
 }).
 
+-opaque client() :: #client{}.
+-export_type([client/0]).
+
 init(Opts) ->
 	{ok, #client{opts=Opts}}.
 
