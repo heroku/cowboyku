@@ -62,8 +62,13 @@ connect(Transport, Host, Port, Client=#client{state=State, opts=Opts})
 		when is_atom(Transport), is_list(Host),
 			is_integer(Port), is_record(Client, client),
 			State =:= wait ->
-	{ok, Socket} = Transport:connect(Host, Port, Opts),
-	{ok, Client#client{state=request, socket=Socket, transport=Transport}}.
+	case Transport:connect(Host, Port, Opts) of
+		{ok, Socket} ->
+			{ok, Client#client{state=request,
+							   socket=Socket,
+							   transport=Transport}};
+		{error, _} = Err -> Err
+	end.
 
 raw_request(Data, Client=#client{state=response_body}) ->
 	{done, Client2} = skip_body(Client),
