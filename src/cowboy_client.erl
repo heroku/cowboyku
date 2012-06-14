@@ -89,10 +89,13 @@ raw_request(Data, Client=#client{state=response_body}) ->
 	{done, Client2} = skip_body(Client),
 	raw_request(Data, Client2);
 raw_request(Data, Client=#client{
-		state=State, socket=Socket, transport=Transport})
-		when State =:= request ->
-	ok = Transport:send(Socket, Data),
-	{ok, Client}.
+		state=request, socket=Socket, transport=Transport}) ->
+	case Transport:send(Socket, Data) of
+		ok ->
+			{ok, Client};
+		{error, _} = Err ->
+			Err
+	end.
 
 request(Method, URL, Client) ->
 	request(Method, URL, [], <<>>, Client).
