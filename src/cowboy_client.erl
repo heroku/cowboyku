@@ -121,14 +121,14 @@ request(Method, URL, Headers, Body, Client=#client{
 request_to_iolist(Method, Headers, Body, Version, FullHost, Path) ->
 	VersionBin = cowboy_http:version_to_binary(Version),
 	%% @todo do keepalive too, allow override...
-	Headers2 = [{<<"host">>, FullHost} | Headers],
-	Headers3 = case iolist_size(Body) of
-				   0 -> Headers2;
-				   Length -> [{<<"content-length">>, integer_to_list(Length)}
-							  | Headers2]
-			   end,
+	Headers2 = [{<<"Host">>, FullHost} | Headers],
+	ContentLength = case iolist_size(Body) of
+						0 -> [];
+						Length -> [{<<"Content-Length">>, integer_to_list(Length)}]
+					end,
 	HeadersData = [[Name, <<": ">>, Value, <<"\r\n">>]
-				   || {Name, Value} <- Headers3],
+				   || {Name, Value} <-
+						  Headers2 ++ ContentLength],
 	[Method, <<" ">>, Path, <<" ">>, VersionBin, <<"\r\n">>,
 	 HeadersData, <<"\r\n">>, Body].
 
