@@ -20,6 +20,7 @@
 -export([init/1]).
 -export([state/1]).
 -export([transport/1]).
+-export([close/1]).
 
 -export([connect/4]).
 -export([raw_request/2]).
@@ -63,6 +64,11 @@ transport(#client{socket=undefined}) ->
 	{error, notconnected};
 transport(#client{transport=Transport, socket=Socket}) ->
 	{ok, Transport, Socket}.
+
+close(#client{socket=undefined}) ->
+	{error, notconnected};
+close(#client{transport=Transport, socket=Socket}) ->
+	Transport:close(Socket).
 
 connect(Transport, Host, Port, Client)
 		when is_binary(Host) ->
