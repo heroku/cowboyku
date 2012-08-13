@@ -222,7 +222,8 @@ headers(Req) ->
 %% returned is used as a return value.
 %% @see parse_header/3
 -spec parse_header(cowboy_http:header(), #http_req{})
-	-> {any(), #http_req{}} | {error, badarg}.
+	-> {any(), #http_req{}} | {undefined, binary(), #http_req{}}
+	| {error, badarg}.
 parse_header(Name, Req=#http_req{p_headers=PHeaders}) ->
 	case lists:keyfind(Name, 1, PHeaders) of
 		false -> parse_header(Name, Req, parse_header_default(Name));
@@ -239,7 +240,8 @@ parse_header_default(_Name) -> undefined.
 %%
 %% When the header is unknown, the value is returned directly without parsing.
 -spec parse_header(cowboy_http:header(), #http_req{}, any())
-	-> {any(), #http_req{}} | {error, badarg}.
+	-> {any(), #http_req{}} | {undefined, binary(), #http_req{}}
+	| {error, badarg}.
 parse_header(Name, Req, Default) when Name =:= 'Accept' ->
 	parse_header(Name, Req, Default,
 		fun (Value) ->
@@ -275,7 +277,7 @@ parse_header(Name, Req, Default) when Name =:= 'Content-Type' ->
 		fun (Value) ->
 			cowboy_http:content_type(Value)
 		end);
-parse_header(Name, Req, Default) when Name =:= 'Expect' ->
+parse_header(Name, Req, Default) when Name =:= <<"Expect">> ->
 	parse_header(Name, Req, Default,
 		fun (Value) ->
 			cowboy_http:nonempty_list(Value, fun cowboy_http:expectation/2)
@@ -307,8 +309,15 @@ parse_header(Name, Req, Default) ->
 	{Value, Req2} = header(Name, Req, Default),
 	{undefined, Value, Req2}.
 
-%% @todo This doesn't look in the cache.
 parse_header(Name, Req=#http_req{p_headers=PHeaders}, Default, Fun) ->
+	case lists:keyfind(Name, 1, PHeaders) of
+		{Name, P} ->
+			{P, Req};
+		false ->
+			parse_header_no_cache(Name, Req, Default, Fun)
+	end.
+
+parse_header_no_cache(Name, Req=#http_req{p_headers=PHeaders}, Default, Fun) ->
 	case header(Name, Req) of
 		{undefined, Req2} ->
 			{Default, Req2#http_req{p_headers=[{Name, Default}|PHeaders]}};
@@ -429,8 +438,19 @@ init_stream(TransferDecode, TransferState, ContentDecode, Req) ->
 %% for each streamed part, and {done, Req} when it's finished streaming.
 -spec stream_body(#http_req{}) -> {ok, binary(), #http_req{}}
 	| {done, #http_req{}} | {error, atom()}.
-stream_body(Req=#http_req{body_state=waiting}) ->
-	case parse_header('Transfer-Encoding', Req) of
+stream_body(Req=#http_req{body_state=waiting,
+		version=Version, transport=Transport, socket=Socket}) ->
+	case parse_header(<<"Expect">>, Req) of
+		{[<<"100-continue">>], Req1} ->
+			HTTPVer = cowboy_http:version_to_binary(Version),
+			Transport:send(Socket,
+				<< HTTPVer/binary, " ", (status(100))/binary, "\r\n\r\n" >>);
+		{undefined, Req1} ->
+			ok;
+		{undefined, _, Req1} ->
+			ok
+	end,
+	case parse_header('Transfer-Encoding', Req1) of
 		{[<<"chunked">>], Req2} ->
 			stream_body(Req2#http_req{body_state=
 				{stream, fun cowboy_http:te_chunked/2, {0, 0},
@@ -452,7 +472,13 @@ stream_body(Req=#http_req{buffer=Buffer, body_state={stream, _, _, _}})
 stream_body(Req=#http_req{body_state={stream, _, _, _}}) ->
 	stream_body_recv(Req);
 stream_body(Req=#http_req{body_state=done}) ->
-	{done, Req}.
+	{done, Req};
+stream_body(Req=#http_req{body_state={multipart, _N, _Fun},
+		transport=Transport, socket=Socket}) ->
+	case Transport:recv(Socket, 0, 5000) of
+		{ok, Data} -> {ok, Data, Req};
+		{error, Reason} -> {error, Reason}
+	end.
 
 -spec stream_body_recv(#http_req{})
 	-> {ok, binary(), #http_req{}} | {error, atom()}.

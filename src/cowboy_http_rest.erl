@@ -28,16 +28,16 @@
 
 	%% Media type.
 	content_types_p = [] ::
-		[{{binary(), binary(), [{binary(), binary()}]}, atom()}],
+		[{binary() | {binary(), binary(), [{binary(), binary()}]}, atom()}],
 	content_type_a :: undefined
-		| {{binary(), binary(), [{binary(), binary()}]}, atom()},
+		| {binary() | {binary(), binary(), [{binary(), binary()}]}, atom()},
 
 	%% Language.
 	languages_p = [] :: [binary()],
 	language_a :: undefined | binary(),
 
 	%% Charset.
-	charsets_p = [] :: [binary()],
+	charsets_p = [] :: [{binary(), atom()}],
 	charset_a :: undefined | binary(),
 
 	%% Cached resource calls.
@@ -203,7 +203,7 @@ content_types_provided(Req=#http_req{meta=Meta}, State) ->
 		{[], Req2, HandlerState} ->
 			not_acceptable(Req2, State#state{handler_state=HandlerState});
 		{CTP, Req2, HandlerState} ->
-		    CTP2 = [normalize_content_types_provided(P) || P <- CTP],
+		    CTP2 = [normalize_content_types(P) || P <- CTP],
 			State2 = State#state{
 				handler_state=HandlerState, content_types_p=CTP2},
 			{Accept, Req3} = cowboy_http_req:parse_header('Accept', Req2),
@@ -219,10 +219,10 @@ content_types_provided(Req=#http_req{meta=Meta}, State) ->
 			end
 	end.
 
-normalize_content_types_provided({ContentType, Handler})
+normalize_content_types({ContentType, Callback})
 		when is_binary(ContentType) ->
-    {cowboy_http:content_type(ContentType), Handler};
-normalize_content_types_provided(Provided) ->
+    {cowboy_http:content_type(ContentType), Callback};
+normalize_content_types(Provided) ->
 	Provided.
 
 prioritize_accept(Accept) ->
@@ -367,7 +367,8 @@ charsets_provided(Req, State) ->
 				cowboy_http_req:parse_header('Accept-Charset', Req2),
 			case AcceptCharset of
 				undefined ->
-					set_content_type(Req3, State2#state{charset_a=hd(CP)});
+					set_content_type(Req3, State2#state{
+						charset_a=element(1, hd(CP))});
 				AcceptCharset ->
 					AcceptCharset2 = prioritize_charsets(AcceptCharset),
 					choose_charset(Req3, State2, AcceptCharset2)
@@ -397,10 +398,9 @@ choose_charset(Req, State=#state{charsets_p=CP}, [Charset|Tail]) ->
 
 match_charset(Req, State, Accept, [], _Charset) ->
 	choose_charset(Req, State, Accept);
-match_charset(Req, State, _Accept, [Provided|_Tail],
-		{Provided, _Quality}) ->
+match_charset(Req, State, _Accept, [{Provided, _}|_], {Provided, _}) ->
 	set_content_type(Req, State#state{charset_a=Provided});
-match_charset(Req, State, Accept, [_Provided|Tail], Charset) ->
+match_charset(Req, State, Accept, [_|Tail], Charset) ->
 	match_charset(Req, State, Accept, Tail, Charset).
 
 set_content_type(Req=#http_req{meta=Meta}, State=#state{
@@ -724,10 +724,11 @@ put_resource(Req, State, OnTrue) ->
 		{halt, Req2, HandlerState} ->
 			terminate(Req2, State#state{handler_state=HandlerState});
 		{CTA, Req2, HandlerState} ->
+		    CTA2 = [normalize_content_types(P) || P <- CTA],
 			State2 = State#state{handler_state=HandlerState},
 			{ContentType, Req3}
 				= cowboy_http_req:parse_header('Content-Type', Req2),
-			choose_content_type(Req3, State2, OnTrue, ContentType, CTA)
+			choose_content_type(Req3, State2, OnTrue, ContentType, CTA2)
 	end.
 
 %% The special content type '*' will always match. It can be used as a
@@ -905,7 +906,6 @@ next(Req, State, Next) when is_function(Next) ->
 next(Req, State, StatusCode) when is_integer(StatusCode) ->
 	respond(Req, State, StatusCode).
 
-%% @todo Allow some sort of callback for custom error pages.
 respond(Req, State, StatusCode) ->
 	{ok, Req2} = cowboy_http_req:reply(StatusCode, Req),
 	terminate(Req2, State).
