@@ -128,75 +128,70 @@ groups() ->
 
 init_per_suite(Config) ->
 	application:start(inets),
+	application:start(crypto),
+	application:start(ranch),
 	application:start(cowboy),
 	Config.
 
 end_per_suite(_Config) ->
 	application:stop(cowboy),
+	application:stop(ranch),
+	application:stop(crypto),
 	application:stop(inets),
 	ok.
 
 init_per_group(http, Config) ->
 	Port = 33080,
-	Transport = cowboy_tcp_transport,
+	Transport = ranch_tcp,
 	Config1 = init_static_dir(Config),
-	{ok, _} = cowboy:start_listener(http, 100,
-		Transport, [{port, Port}],
-		cowboy_http_protocol, [
-			{dispatch, init_dispatch(Config1)},
-			{max_keepalive, 50},
-			{timeout, 500}]
-	),
+	{ok, _} = cowboy:start_http(http, 100, [{port, Port}], [
+		{dispatch, init_dispatch(Config1)},
+		{max_keepalive, 50},
+		{timeout, 500}
+	]),
 	{ok, Client} = cowboy_client:init([]),
 	[{scheme, <<"http">>}, {port, Port}, {opts, []},
 		{transport, Transport}, {client, Client}|Config1];
 init_per_group(https, Config) ->
 	Port = 33081,
-	Transport = cowboy_ssl_transport,
+	Transport = ranch_ssl,
 	Opts = [
 		{certfile, ?config(data_dir, Config) ++ "cert.pem"},
 		{keyfile, ?config(data_dir, Config) ++ "key.pem"},
 		{password, "cowboy"}
 	],
 	Config1 = init_static_dir(Config),
-	application:start(crypto),
 	application:start(public_key),
 	application:start(ssl),
-	{ok, _} = cowboy:start_listener(https, 100,
-		Transport, Opts ++ [{port, Port}],
-		cowboy_http_protocol, [
-			{dispatch, init_dispatch(Config1)},
-			{max_keepalive, 50},
-			{timeout, 500}]
-	),
+	{ok, _} = cowboy:start_https(https, 100, Opts ++ [{port, Port}], [
+		{dispatch, init_dispatch(Config1)},
+		{max_keepalive, 50},
+		{timeout, 500}
+	]),
 	{ok, Client} = cowboy_client:init(Opts),
 	[{scheme, <<"https">>}, {port, Port}, {opts, Opts},
 		{transport, Transport}, {client, Client}|Config1];
 init_per_group(onrequest, Config) ->
 	Port = 33082,
-	Transport = cowboy_tcp_transport,
-	{ok, _} = cowboy:start_listener(onrequest, 100,
-		Transport, [{port, Port}],
-		cowboy_http_protocol, [
-			{dispatch, init_dispatch(Config)},
-			{max_keepalive, 50},
-			{onrequest, fun onrequest_hook/1},
-			{timeout, 500}
-		]),
+	Transport = ranch_tcp,
+	{ok, _} = cowboy:start_http(onrequest, 100, [{port, Port}], [
+		{dispatch, init_dispatch(Config)},
+		{max_keepalive, 50},
+		{onrequest, fun onrequest_hook/1},
+		{timeout, 500}
+	]),
 	{ok, Client} = cowboy_client:init([]),
 	[{scheme, <<"http">>}, {port, Port}, {opts, []},
 		{transport, Transport}, {client, Client}|Config];
 init_per_group(onresponse, Config) ->
 	Port = 33083,
-	Transport = cowboy_tcp_transport,
-	{ok, _} = cowboy:start_listener(onresponse, 100,
-		Transport, [{port, Port}],
-		cowboy_http_protocol, [
-			{dispatch, init_dispatch(Config)},
-			{max_keepalive, 50},
-			{onresponse, fun onresponse_hook/3},
-			{timeout, 500}
-		]),
+	Transport = ranch_tcp,
+	{ok, _} = cowboy:start_http(onresponse, 100, [{port, Port}], [
+		{dispatch, init_dispatch(Config)},
+		{max_keepalive, 50},
+		{onresponse, fun onresponse_hook/4},
+		{timeout, 500}
+	]),
 	{ok, Client} = cowboy_client:init([]),
 	[{scheme, <<"http">>}, {port, Port}, {opts, []},
 		{transport, Transport}, {client, Client}|Config].
@@ -205,7 +200,6 @@ end_per_group(https, Config) ->
 	cowboy:stop_listener(https),
 	application:stop(ssl),
 	application:stop(public_key),
-	application:stop(crypto),
 	end_static_dir(Config),
 	ok;
 end_per_group(http, Config) ->
@@ -224,30 +218,30 @@ init_dispatch(Config) ->
 			{[<<"init_shutdown">>], http_handler_init_shutdown, []},
 			{[<<"long_polling">>], http_handler_long_polling, []},
 			{[<<"headers">>, <<"dupe">>], http_handler,
-				[{headers, [{<<"Connection">>, <<"close">>}]}]},
+				[{headers, [{<<"connection">>, <<"close">>}]}]},
 			{[<<"set_resp">>, <<"header">>], http_handler_set_resp,
-				[{headers, [{<<"Vary">>, <<"Accept">>}]}]},
+				[{headers, [{<<"vary">>, <<"Accept">>}]}]},
 			{[<<"set_resp">>, <<"overwrite">>], http_handler_set_resp,
-				[{headers, [{<<"Server">>, <<"DesireDrive/1.0">>}]}]},
+				[{headers, [{<<"server">>, <<"DesireDrive/1.0">>}]}]},
 			{[<<"set_resp">>, <<"body">>], http_handler_set_resp,
 				[{body, <<"A flameless dance does not equal a cycle">>}]},
 			{[<<"stream_body">>, <<"set_resp">>], http_handler_stream_body,
 				[{reply, set_resp}, {body, <<"stream_body_set_resp">>}]},
-			{[<<"static">>, '...'], cowboy_http_static,
+			{[<<"static">>, '...'], cowboy_static,
 				[{directory, ?config(static_dir, Config)},
 				 {mimetypes, [{<<".css">>, [<<"text/css">>]}]}]},
-			{[<<"static_mimetypes_function">>, '...'], cowboy_http_static,
+			{[<<"static_mimetypes_function">>, '...'], cowboy_static,
 				[{directory, ?config(static_dir, Config)},
 				 {mimetypes, {fun(Path, data) when is_binary(Path) ->
 					[<<"text/html">>] end, data}}]},
 			{[<<"handler_errors">>], http_handler_errors, []},
-			{[<<"static_attribute_etag">>, '...'], cowboy_http_static,
+			{[<<"static_attribute_etag">>, '...'], cowboy_static,
 				[{directory, ?config(static_dir, Config)},
 				 {etag, {attributes, [filepath, filesize, inode, mtime]}}]},
-			{[<<"static_function_etag">>, '...'], cowboy_http_static,
+			{[<<"static_function_etag">>, '...'], cowboy_static,
 				[{directory, ?config(static_dir, Config)},
 				 {etag, {fun static_function_etag/2, etag_data}}]},
-			{[<<"static_specify_file">>, '...'],  cowboy_http_static,
+			{[<<"static_specify_file">>, '...'],  cowboy_static,
 				[{directory, ?config(static_dir, Config)},
 				 {mimetypes, [{<<".css">>, [<<"text/css">>]}]},
 				 {file, <<"test_file.css">>}]},
@@ -333,17 +327,17 @@ check_raw_status(Config) ->
 	HugeCookie = lists:flatten(["whatever_man_biiiiiiiiiiiig_cookie_me_want_77="
 		"Wed Apr 06 2011 10:38:52 GMT-0500 (CDT)" || _ <- lists:seq(1, 40)]),
 	ResponsePacket =
-"HTTP/1.0 302 Found
-Location: http://www.google.co.il/
-Cache-Control: private
-Content-Type: text/html; charset=UTF-8
-Set-Cookie: PREF=ID=568f67013d4a7afa:FF=0:TM=1323014101:LM=1323014101:S=XqctDWC65MzKT0zC; expires=Tue, 03-Dec-2013 15:55:01 GMT; path=/; domain=.google.com
-Date: Sun, 04 Dec 2011 15:55:01 GMT
-Server: gws
-Content-Length: 221
-X-XSS-Protection: 1; mode=block
-X-Frame-Options: SAMEORIGIN
-
+"HTTP/1.0 302 Found\r
+Location: http://www.google.co.il/\r
+Cache-Control: private\r
+Content-Type: text/html; charset=UTF-8\r
+Set-Cookie: PREF=ID=568f67013d4a7afa:FF=0:TM=1323014101:LM=1323014101:S=XqctDWC65MzKT0zC; expires=Tue, 03-Dec-2013 15:55:01 GMT; path=/; domain=.google.com\r
+Date: Sun, 04 Dec 2011 15:55:01 GMT\r
+Server: gws\r
+Content-Length: 221\r
+X-XSS-Protection: 1; mode=block\r
+X-Frame-Options: SAMEORIGIN\r
+\r
 <HTML><HEAD><meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">
 <TITLE>302 Moved</TITLE></HEAD><BODY>
 <H1>302 Moved</H1>
@@ -360,13 +354,13 @@ The document has moved
 		{400, "\r\n\r\n\r\n\r\n\r\n\r\n"},
 		{400, "GET / HTTP/1.1\r\nHost: ninenines.eu\r\n\r\n"},
 		{400, "GET http://proxy/ HTTP/1.1\r\n\r\n"},
-		{400, ResponsePacket},
+		{505, ResponsePacket},
 		{408, "GET / HTTP/1.1\r\n"},
 		{408, "GET / HTTP/1.1\r\nHost: localhost"},
 		{408, "GET / HTTP/1.1\r\nHost: localhost\r\n"},
 		{408, "GET / HTTP/1.1\r\nHost: localhost\r\n\r"},
-		{413, Huge},
-		{413, "GET / HTTP/1.1\r\n" ++ Huge},
+		{414, Huge},
+		{400, "GET / HTTP/1.1\r\n" ++ Huge},
 		{505, "GET / HTTP/1.2\r\nHost: localhost\r\n\r\n"},
 		{closed, ""},
 		{closed, "\r\n"},
@@ -493,9 +487,9 @@ http10_chunkless(Config) ->
 http10_hostless(Config) ->
 	Port10 = ?config(port, Config) + 10,
 	Name = list_to_atom("http10_hostless_" ++ integer_to_list(Port10)),
-	cowboy:start_listener(Name, 5,
+	ranch:start_listener(Name, 5,
 		?config(transport, Config), ?config(opts, Config) ++ [{port, Port10}],
-		cowboy_http_protocol, [
+		cowboy_protocol, [
 			{dispatch, [{'_', [
 				{[<<"http1.0">>, <<"hostless">>], http_handler, []}]}]},
 			{max_keepalive, 50},
@@ -558,8 +552,8 @@ multipart(Config) ->
 	{ok, RespBody, _} = cowboy_client:response_body(Client3),
 	Parts = binary_to_term(RespBody),
 	Parts = [
-		{[{<<"X-Name">>, <<"answer">>}], <<"42">>},
-		{[{'Server', <<"Cowboy">>}], <<"It rocks!\r\n">>}
+		{[{<<"x-name">>, <<"answer">>}], <<"42">>},
+		{[{<<"server">>, <<"Cowboy">>}], <<"It rocks!\r\n">>}
 	].
 
 nc_reqs(Config, Input) ->
@@ -603,13 +597,11 @@ onrequest_reply(Config) ->
 
 %% Hook for the above onrequest tests.
 onrequest_hook(Req) ->
-	case cowboy_http_req:qs_val(<<"reply">>, Req) of
+	case cowboy_req:qs_val(<<"reply">>, Req) of
 		{undefined, Req2} ->
-			{ok, Req3} = cowboy_http_req:set_resp_header(
-				'Server', <<"Serenity">>, Req2),
-			Req3;
+			cowboy_req:set_resp_header(<<"server">>, <<"Serenity">>, Req2);
 		{_, Req2} ->
-			{ok, Req3} = cowboy_http_req:reply(
+			{ok, Req3} = cowboy_req:reply(
 				200, [], <<"replied!">>, Req2),
 			Req3
 	end.
@@ -631,8 +623,8 @@ onresponse_reply(Config) ->
 	{error, closed} = cowboy_client:response_body(Client3).
 
 %% Hook for the above onresponse tests.
-onresponse_hook(_, Headers, Req) ->
-	{ok, Req2} = cowboy_http_req:reply(
+onresponse_hook(_, Headers, _, Req) ->
+	{ok, Req2} = cowboy_req:reply(
 		<<"777 Lucky">>, [{<<"x-hook">>, <<"onresponse">>}|Headers], Req),
 	Req2.
 

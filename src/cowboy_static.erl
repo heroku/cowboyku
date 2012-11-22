@@ -44,15 +44,15 @@
 %% ==== Examples ====
 %% ```
 %% %% Serve files from /var/www/ under http://example.com/static/
-%% {[<<"static">>, '...'], cowboy_http_static,
+%% {[<<"static">>, '...'], cowboy_static,
 %%     [{directory, "/var/www"}]}
 %%
 %% %% Serve files from the current working directory under http://example.com/static/
-%% {[<<"static">>, '...'], cowboy_http_static,
+%% {[<<"static">>, '...'], cowboy_static,
 %%     [{directory, <<"./">>}]}
 %%
 %% %% Serve files from cowboy/priv/www under http://example.com/
-%% {['...'], cowboy_http_static,
+%% {['...'], cowboy_static,
 %%     [{directory, {priv_dir, cowboy, [<<"www">>]}}]}
 %% '''
 %%
@@ -62,7 +62,7 @@
 %% `application/octet-stream'. This can be overriden by supplying a list
 %% of filename extension to mimetypes pairs in the `mimetypes' option.
 %% The filename extension should be a binary string including the leading dot.
-%% The mimetypes must be of a type that the `cowboy_http_rest' protocol can
+%% The mimetypes must be of a type that the `cowboy_rest' protocol can
 %% handle.
 %%
 %% The <a href="https://github.com/spawngrid/mimetypes">spawngrid/mimetypes</a>
@@ -74,16 +74,16 @@
 %% ==== Example ====
 %% ```
 %% %% Use a static list of content types.
-%% {[<<"static">>, '...'], cowboy_http_static,
+%% {[<<"static">>, '...'], cowboy_static,
 %%     [{directory, {priv_dir, cowboy, []}},
 %%      {mimetypes, [
 %%          {<<".css">>, [<<"text/css">>]},
 %%          {<<".js">>, [<<"application/javascript">>]}]}]}
 %%
 %% %% Use the default database in the mimetypes application.
-%% {[<<"static">>, '...', cowboy_http_static,
+%% {[<<"static">>, '...'], cowboy_static,
 %%     [{directory, {priv_dir, cowboy, []}},
-%%      {mimetypes, {fun mimetypes:path_to_mimes/2, default}}]]}
+%%      {mimetypes, {fun mimetypes:path_to_mimes/2, default}}]}
 %% '''
 %%
 %% == ETag Header Function ==
@@ -110,19 +110,19 @@
 %% ====  Examples ====
 %% ```
 %% %% A value of default is equal to not specifying the option.
-%% {[<<"static">>, '...', cowboy_http_static,
+%% {[<<"static">>, '...'], cowboy_static,
 %%     [{directory, {priv_dir, cowboy, []}},
-%%      {etag, default}]]}
+%%      {etag, default}]}
 %%
 %% %% Use all avaliable ETag function arguments to generate a header value.
-%% {[<<"static">>, '...', cowboy_http_static,
+%% {[<<"static">>, '...'], cowboy_static,
 %%     [{directory, {priv_dir, cowboy, []}},
-%%      {etag, {attributes, [filepath, filesize, inode, mtime]}}]]}
+%%      {etag, {attributes, [filepath, filesize, inode, mtime]}}]}
 %%
 %% %% Use a user defined function to generate a strong ETag header value.
-%% {[<<"static">>, '...', cowboy_http_static,
+%% {[<<"static">>, '...'], cowboy_static,
 %%     [{directory, {priv_dir, cowboy, []}},
-%%      {etag, {fun generate_strong_etag/2, strong_etag_extra}}]]}
+%%      {etag, {fun generate_strong_etag/2, strong_etag_extra}}]}
 %%
 %% generate_strong_etag(Arguments, strong_etag_extra) ->
 %%     {_, Filepath} = lists:keyfind(filepath, 1, Arguments),
@@ -153,33 +153,38 @@
 %%
 %% ```
 %% %% Serve cowboy/priv/www/index.html as http://example.com/
-%% {[], cowboy_http_static,
+%% {[], cowboy_static,
 %%     [{directory, {priv_dir, cowboy, [<<"www">>]}}
 %%      {file, <<"index.html">>}]}
 %%
 %% %% Serve cowboy/priv/www/page.html under http://example.com/*/page
-%% {['*', <<"page">>], cowboy_http_static,
+%% {['*', <<"page">>], cowboy_static,
 %%     [{directory, {priv_dir, cowboy, [<<"www">>]}}
 %%      {file, <<"page.html">>}]}.
 %%
 %% %% Always serve cowboy/priv/www/other.html under http://example.com/other
-%% {[<<"other">>, '...'], cowboy_http_static,
+%% {[<<"other">>, '...'], cowboy_static,
 %%     [{directory, {priv_dir, cowboy, [<<"www">>]}}
 %%      {file, "other.html"}]}
 %% '''
--module(cowboy_http_static).
+-module(cowboy_static).
 
 %% include files
--include("http.hrl").
 -include_lib("kernel/include/file.hrl").
 
-%% cowboy_http_protocol callbacks
+%% cowboy_protocol callbacks
 -export([init/3]).
 
-%% cowboy_http_rest callbacks
--export([rest_init/2, allowed_methods/2, malformed_request/2,
-	resource_exists/2, forbidden/2, last_modified/2, generate_etag/2,
-	content_types_provided/2, file_contents/2]).
+%% cowboy_rest callbacks
+-export([rest_init/2]).
+-export([allowed_methods/2]).
+-export([malformed_request/2]).
+-export([resource_exists/2]).
+-export([forbidden/2]).
+-export([last_modified/2]).
+-export([generate_etag/2]).
+-export([content_types_provided/2]).
+-export([file_contents/2]).
 
 %% internal
 -export([path_to_mimetypes/2]).
@@ -202,11 +207,11 @@
 
 %% @private Upgrade from HTTP handler to REST handler.
 init({_Transport, http}, _Req, _Opts) ->
-	{upgrade, protocol, cowboy_http_rest}.
+	{upgrade, protocol, cowboy_rest}.
 
 
 %% @private Set up initial state of REST handler.
--spec rest_init(#http_req{}, list()) -> {ok, #http_req{}, #state{}}.
+-spec rest_init(Req, list()) -> {ok, Req, #state{}} when Req::cowboy_req:req().
 rest_init(Req, Opts) ->
 	Directory = proplists:get_value(directory, Opts),
 	Directory1 = directory_path(Directory),
@@ -225,7 +230,7 @@ rest_init(Req, Opts) ->
 	end,
 	{Filepath, Req1} = case lists:keyfind(file, 1, Opts) of
 		{_, Filepath2} -> {filepath_path(Filepath2), Req};
-		false -> cowboy_http_req:path_info(Req)
+		false -> cowboy_req:path_info(Req)
 	end,
 	State = case check_path(Filepath) of
 		error ->
@@ -241,14 +246,14 @@ rest_init(Req, Opts) ->
 
 
 %% @private Only allow GET and HEAD requests on files.
--spec allowed_methods(#http_req{}, #state{}) ->
-		{[atom()], #http_req{}, #state{}}.
+-spec allowed_methods(Req, #state{})
+	-> {[binary()], Req, #state{}} when Req::cowboy_req:req().
 allowed_methods(Req, State) ->
-	{['GET', 'HEAD'], Req, State}.
+	{[<<"GET">>, <<"HEAD">>], Req, State}.
 
 %% @private
--spec malformed_request(#http_req{}, #state{}) ->
-		{boolean(), #http_req{}, #state{}}.
+-spec malformed_request(Req, #state{})
+	-> {boolean(), Req, #state{}} when Req::cowboy_req:req().
 malformed_request(Req, #state{filepath=error}=State) ->
 	{true, Req, State};
 malformed_request(Req, State) ->
@@ -256,8 +261,8 @@ malformed_request(Req, State) ->
 
 
 %% @private Check if the resource exists under the document root.
--spec resource_exists(#http_req{}, #state{}) ->
-		{boolean(), #http_req{}, #state{}}.
+-spec resource_exists(Req, #state{})
+	-> {boolean(), Req, #state{}} when Req::cowboy_req:req().
 resource_exists(Req, #state{fileinfo={error, _}}=State) ->
 	{false, Req, State};
 resource_exists(Req, #state{fileinfo={ok, Fileinfo}}=State) ->
@@ -267,7 +272,8 @@ resource_exists(Req, #state{fileinfo={ok, Fileinfo}}=State) ->
 %% @private
 %% Access to a file resource is forbidden if it exists and the local node does
 %% not have permission to read it. Directory listings are always forbidden.
--spec forbidden(#http_req{}, #state{}) -> {boolean(), #http_req{}, #state{}}.
+-spec forbidden(Req, #state{})
+	-> {boolean(), Req, #state{}} when Req::cowboy_req:req().
 forbidden(Req, #state{fileinfo={_, #file_info{type=directory}}}=State) ->
 	{true, Req, State};
 forbidden(Req, #state{fileinfo={error, eacces}}=State) ->
@@ -279,8 +285,8 @@ forbidden(Req, #state{fileinfo={ok, #file_info{access=Access}}}=State) ->
 
 
 %% @private Read the time a file system system object was last modified.
--spec last_modified(#http_req{}, #state{}) ->
-		{calendar:datetime(), #http_req{}, #state{}}.
+-spec last_modified(Req, #state{})
+	-> {calendar:datetime(), Req, #state{}} when Req::cowboy_req:req().
 last_modified(Req, #state{fileinfo={ok, #file_info{mtime=Modified}}}=State) ->
 	{Modified, Req, State}.
 
@@ -288,8 +294,8 @@ last_modified(Req, #state{fileinfo={ok, #file_info{mtime=Modified}}}=State) ->
 %% @private Generate the ETag header value for this file.
 %% The ETag header value is only generated if the resource is a file that
 %% exists in document root.
--spec generate_etag(#http_req{}, #state{}) ->
-	{undefined | binary(), #http_req{}, #state{}}.
+-spec generate_etag(Req, #state{})
+	-> {undefined | binary(), Req, #state{}} when Req::cowboy_req:req().
 generate_etag(Req, #state{fileinfo={_, #file_info{type=regular, inode=INode,
 		mtime=Modified, size=Filesize}}, filepath=Filepath,
 		etag_fun={ETagFun, ETagData}}=State) ->
@@ -302,7 +308,7 @@ generate_etag(Req, State) ->
 
 
 %% @private Return the content type of a file.
--spec content_types_provided(#http_req{}, #state{}) -> tuple().
+-spec content_types_provided(cowboy_req:req(), #state{}) -> tuple().
 content_types_provided(Req, #state{filepath=Filepath,
 		mimetypes={MimetypesFun, MimetypesData}}=State) ->
 	Mimetypes = [{T, file_contents}
@@ -311,10 +317,10 @@ content_types_provided(Req, #state{filepath=Filepath,
 
 
 %% @private Return a function that writes a file directly to the socket.
--spec file_contents(#http_req{}, #state{}) -> tuple().
+-spec file_contents(cowboy_req:req(), #state{}) -> tuple().
 file_contents(Req, #state{filepath=Filepath,
 		fileinfo={ok, #file_info{size=Filesize}}}=State) ->
-	{ok, Transport, Socket} = cowboy_http_req:transport(Req),
+	{ok, Transport, Socket} = cowboy_req:transport(Req),
 	Writefile = content_function(Transport, Socket, Filepath),
 	{{stream, Filesize, Writefile}, Req, State}.
 
@@ -326,13 +332,14 @@ file_contents(Req, #state{filepath=Filepath,
 -spec content_function(module(), inet:socket(), binary()) ->
 	fun(() -> {sent, non_neg_integer()}).
 content_function(Transport, Socket, Filepath) ->
-	%% `file:sendfile/2' will only work with the `cowboy_tcp_transport'
+	%% `file:sendfile/2' will only work with the `ranch_tcp'
 	%% transport module. SSL or future SPDY transports that require the
-	%% content to be encrypted or framed as the content is sent.
+	%% content to be encrypted or framed as the content is sent
+	%% will use the fallback mechanism.
 	case erlang:function_exported(file, sendfile, 2) of
 		false ->
 			fun() -> sfallback(Transport, Socket, Filepath) end;
-		_ when Transport =/= cowboy_tcp_transport ->
+		_ when Transport =/= ranch_tcp ->
 			fun() -> sfallback(Transport, Socket, Filepath) end;
 		true ->
 			fun() -> sendfile(Socket, Filepath) end
@@ -444,7 +451,7 @@ path_to_mimetypes(Filepath, Extensions) when is_binary(Filepath) ->
 
 -spec path_to_mimetypes_(binary(), [{binary(), [mimedef()]}]) -> [mimedef()].
 path_to_mimetypes_(Ext, Extensions) ->
-	case lists:keyfind(Ext, 1, Extensions) of
+	case lists:keyfind(cowboy_bstr:to_lower(Ext), 1, Extensions) of
 		{_, MTs} -> MTs;
 		_Unknown -> default_mimetype()
 	end.

@@ -21,9 +21,19 @@
 -module(cowboy_clock).
 -behaviour(gen_server).
 
--export([start_link/0, stop/0, rfc1123/0, rfc2109/1]). %% API.
--export([init/1, handle_call/3, handle_cast/2,
-	handle_info/2, terminate/2, code_change/3]). %% gen_server.
+%% API.
+-export([start_link/0]).
+-export([stop/0]).
+-export([rfc1123/0]).
+-export([rfc2109/1]).
+
+%% gen_server.
+-export([init/1]).
+-export([handle_call/3]).
+-export([handle_cast/2]).
+-export([handle_info/2]).
+-export([terminate/2]).
+-export([code_change/3]).
 
 -record(state, {
 	universaltime = undefined :: undefined | calendar:datetime(),
@@ -34,7 +44,9 @@
 -define(SERVER, ?MODULE).
 -define(TABLE, ?MODULE).
 
+-ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
+-endif.
 
 %% API.
 
@@ -50,14 +62,14 @@ stop() ->
 
 %% @doc Return the current date and time formatted according to RFC-1123.
 %%
-%% This format is used in the <em>'Date'</em> header sent with HTTP responses.
+%% This format is used in the <em>date</em> header sent with HTTP responses.
 -spec rfc1123() -> binary().
 rfc1123() ->
 	ets:lookup_element(?TABLE, rfc1123, 2).
 
 %% @doc Return the current date and time formatted according to RFC-2109.
 %%
-%% This format is used in the <em>'Set-Cookie'</em> header sent with
+%% This format is used in the <em>set-cookie</em> header sent with
 %% HTTP responses.
 -spec rfc2109(calendar:datetime()) -> binary().
 rfc2109(LocalTime) ->
@@ -97,7 +109,6 @@ rfc2109(LocalTime) ->
 %% gen_server.
 
 %% @private
--spec init([]) -> {ok, #state{}}.
 init([]) ->
 	?TABLE = ets:new(?TABLE, [set, protected,
 		named_table, {read_concurrency, true}]),
@@ -108,8 +119,6 @@ init([]) ->
 	{ok, #state{universaltime=T, rfc1123=B, tref=TRef}}.
 
 %% @private
--spec handle_call(_, _, State)
-	-> {reply, ignored, State} | {stop, normal, stopped, State}.
 handle_call(stop, _From, State=#state{tref=TRef}) ->
 	{ok, cancel} = timer:cancel(TRef),
 	{stop, normal, stopped, State};
@@ -117,12 +126,10 @@ handle_call(_Request, _From, State) ->
 	{reply, ignored, State}.
 
 %% @private
--spec handle_cast(_, State) -> {noreply, State}.
 handle_cast(_Msg, State) ->
 	{noreply, State}.
 
 %% @private
--spec handle_info(_, State) -> {noreply, State}.
 handle_info(update, #state{universaltime=Prev, rfc1123=B1, tref=TRef}) ->
 	T = erlang:universaltime(),
 	B2 = update_rfc1123(B1, Prev, T),
@@ -132,12 +139,10 @@ handle_info(_Info, State) ->
 	{noreply, State}.
 
 %% @private
--spec terminate(_, _) -> ok.
 terminate(_Reason, _State) ->
 	ok.
 
 %% @private
--spec code_change(_, State, _) -> {ok, State}.
 code_change(_OldVsn, State, _Extra) ->
 	{ok, State}.
 

@@ -17,45 +17,49 @@
 -module(cowboy_http).
 
 %% Parsing.
--export([list/2, nonempty_list/2, content_type/1, media_range/2, conneg/2,
-	language_range/2, entity_tag_match/1, expectation/2, params/2,
-	http_date/1, rfc1123_date/1, rfc850_date/1, asctime_date/1,
-	whitespace/2, digits/1, token/2, token_ci/2, quoted_string/2]).
+-export([list/2]).
+-export([nonempty_list/2]).
+-export([content_type/1]).
+-export([media_range/2]).
+-export([conneg/2]).
+-export([language_range/2]).
+-export([entity_tag_match/1]).
+-export([expectation/2]).
+-export([params/2]).
+-export([http_date/1]).
+-export([rfc1123_date/1]).
+-export([rfc850_date/1]).
+-export([asctime_date/1]).
+-export([whitespace/2]).
+-export([digits/1]).
+-export([token/2]).
+-export([token_ci/2]).
+-export([quoted_string/2]).
 
 %% Decoding.
--export([te_chunked/2, te_identity/2, ce_identity/1]).
+-export([te_chunked/2]).
+-export([te_identity/2]).
+-export([ce_identity/1]).
 
 %% Interpretation.
--export([connection_to_atom/1, version_to_binary/1,
-	urldecode/1, urldecode/2, urlencode/1,
-	urlencode/2, x_www_form_urlencoded/2]).
+-export([version_to_binary/1]).
+-export([urldecode/1]).
+-export([urldecode/2]).
+-export([urlencode/1]).
+-export([urlencode/2]).
+-export([x_www_form_urlencoded/1]).
 
--type method() :: 'OPTIONS' | 'GET' | 'HEAD'
-	| 'POST' | 'PUT' | 'DELETE' | 'TRACE' | binary().
--type uri() :: '*' | {absoluteURI, http | https, Host::binary(),
-	Port::integer() | undefined, Path::binary()}
-	| {scheme, Scheme::binary(), binary()}
-	| {abs_path, binary()} | binary().
 -type version() :: {Major::non_neg_integer(), Minor::non_neg_integer()}.
--type header() :: 'Cache-Control' | 'Connection' | 'Date' | 'Pragma'
-	| 'Transfer-Encoding' | 'Upgrade' | 'Via' | 'Accept' | 'Accept-Charset'
-	| 'Accept-Encoding' | 'Accept-Language' | 'Authorization' | 'From' | 'Host'
-	| 'If-Modified-Since' | 'If-Match' | 'If-None-Match' | 'If-Range'
-	| 'If-Unmodified-Since' | 'Max-Forwards' | 'Proxy-Authorization' | 'Range'
-	| 'Referer' | 'User-Agent' | 'Age' | 'Location' | 'Proxy-Authenticate'
-	| 'Public' | 'Retry-After' | 'Server' | 'Vary' | 'Warning'
-	| 'Www-Authenticate' | 'Allow' | 'Content-Base' | 'Content-Encoding'
-	| 'Content-Language' | 'Content-Length' | 'Content-Location'
-	| 'Content-Md5' | 'Content-Range' | 'Content-Type' | 'Etag'
-	| 'Expires' | 'Last-Modified' | 'Accept-Ranges' | 'Set-Cookie'
-	| 'Set-Cookie2' | 'X-Forwarded-For' | 'Cookie' | 'Keep-Alive'
-	| 'Proxy-Connection' | binary().
--type headers() :: [{header(), iodata()}].
+-type headers() :: [{binary(), iodata()}].
 -type status() :: non_neg_integer() | binary().
 
--export_type([method/0, uri/0, version/0, header/0, headers/0, status/0]).
+-export_type([version/0]).
+-export_type([headers/0]).
+-export_type([status/0]).
 
+-ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
+-endif.
 
 %% Parsing.
 
@@ -768,20 +772,6 @@ ce_identity(Data) ->
 
 %% Interpretation.
 
-%% @doc Walk through a tokens list and return whether
-%% the connection is keepalive or closed.
-%%
-%% The connection token is expected to be lower-case.
--spec connection_to_atom([binary()]) -> keepalive | close.
-connection_to_atom([]) ->
-	keepalive;
-connection_to_atom([<<"keep-alive">>|_Tail]) ->
-	keepalive;
-connection_to_atom([<<"close">>|_Tail]) ->
-	close;
-connection_to_atom([_Any|Tail]) ->
-	connection_to_atom(Tail).
-
 %% @doc Convert an HTTP version tuple to its binary form.
 -spec version_to_binary(version()) -> binary().
 version_to_binary({1, 1}) -> <<"HTTP/1.1">>;
@@ -841,8 +831,8 @@ urlencode(Bin) ->
 %% instead.
 -spec urlencode(binary(), [noplus|upper]) -> binary().
 urlencode(Bin, Opts) ->
-	Plus = not proplists:get_value(noplus, Opts, false),
-	Upper = proplists:get_value(upper, Opts, false),
+	Plus = not lists:member(noplus, Opts),
+	Upper = lists:member(upper, Opts),
 	urlencode(Bin, <<>>, Plus, Upper).
 
 -spec urlencode(binary(), binary(), boolean(), boolean()) -> binary().
@@ -871,15 +861,14 @@ tohexu(C) when C < 17 -> $A + C - 10.
 tohexl(C) when C < 10 -> $0 + C;
 tohexl(C) when C < 17 -> $a + C - 10.
 
--spec x_www_form_urlencoded(binary(), fun((binary()) -> binary())) ->
-		list({binary(), binary() | true}).
-x_www_form_urlencoded(<<>>, _URLDecode) ->
+-spec x_www_form_urlencoded(binary()) -> list({binary(), binary() | true}).
+x_www_form_urlencoded(<<>>) ->
 	[];
-x_www_form_urlencoded(Qs, URLDecode) ->
+x_www_form_urlencoded(Qs) ->
 	Tokens = binary:split(Qs, <<"&">>, [global, trim]),
 	[case binary:split(Token, <<"=">>) of
-		[Token] -> {URLDecode(Token), true};
-		[Name, Value] -> {URLDecode(Name), URLDecode(Value)}
+		[Token] -> {urldecode(Token), true};
+		[Name, Value] -> {urldecode(Name), urldecode(Value)}
 	end || Token <- Tokens].
 
 %% Tests.
@@ -1025,16 +1014,6 @@ asctime_date_test_() ->
 	],
 	[{V, fun() -> R = asctime_date(V) end} || {V, R} <- Tests].
 
-connection_to_atom_test_() ->
-	%% {Tokens, Result}
-	Tests = [
-		{[<<"close">>], close},
-		{[<<"keep-alive">>], keepalive},
-		{[<<"keep-alive">>, <<"upgrade">>], keepalive}
-	],
-	[{lists:flatten(io_lib:format("~p", [T])),
-		fun() -> R = connection_to_atom(T) end} || {T, R} <- Tests].
-
 content_type_test_() ->
 	%% {ContentType, Result}
 	Tests = [
@@ -1073,9 +1052,7 @@ x_www_form_urlencoded_test_() ->
 		{<<"a=b=c=d=e&f=g">>, [{<<"a">>, <<"b=c=d=e">>}, {<<"f">>, <<"g">>}]},
 		{<<"a+b=c+d">>, [{<<"a b">>, <<"c d">>}]}
 	],
-	URLDecode = fun urldecode/1,
-	[{Qs, fun() -> R = x_www_form_urlencoded(
-		Qs, URLDecode) end} || {Qs, R} <- Tests].
+	[{Qs, fun() -> R = x_www_form_urlencoded(Qs) end} || {Qs, R} <- Tests].
 
 urldecode_test_() ->
 	U = fun urldecode/2,

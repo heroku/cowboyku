@@ -3,92 +3,84 @@ Cowboy
 
 Cowboy is a small, fast and modular HTTP server written in Erlang.
 
-Cowboy is also a socket acceptor pool, able to accept connections
-for any kind of TCP protocol.
-
 Goals
 -----
 
-Cowboy aims to provide the following advantages:
+Cowboy aims to provide a **complete** HTTP stack in a **small** code base.
+It is optimized for **low latency** and **low memory usage**, in parts
+because it uses **binary strings**.
 
-* **Small** code base.
-* Damn **fast**.
-* **Modular**: transport and protocol handlers are replaceable.
-* **Binary HTTP** for greater speed and lower memory usage.
-* Easy to **embed** inside another application.
-* Selectively **dispatch** requests to handlers, allowing you to send some
-  requests to your embedded code and others to a FastCGI application in
-  PHP or Ruby.
-* No parameterized module. No process dictionary. **Clean** Erlang code.
+Cowboy provides **routing** capabilities, selectively dispatching requests
+to handlers written in Erlang.
 
-The server is currently in early development. Comments and suggestions are
-more than welcome. To contribute, either open bug reports, or fork the project
-and send us pull requests with new or improved functionality. You should
-discuss your plans with us before doing any serious work, though, to avoid
-duplicating efforts.
+Because it uses Ranch for managing connections, Cowboy can easily be
+**embedded** in any other application.
+
+No parameterized module. No process dictionary. **Clean** Erlang code.
 
 Quick start
 -----------
 
-* Add Cowboy as a rebar or agner dependency to your application.
-* Start Cowboy and add one or more listeners.
-* Write handlers for your application.
-* Check out [examples](https://github.com/extend/cowboy_examples)!
+ *  Add Cowboy as a rebar dependency to your application.
+ *  Start Cowboy and add one or more listeners.
+ *  Write handlers for your application.
 
 Getting Started
 ---------------
 
-At heart, Cowboy is nothing more than an TCP acceptor pool. All it does is
-accept connections received on a given port and using a given transport,
-like TCP or SSL, and forward them to a request handler for the given
-protocol. Acceptors and request handlers are of course supervised
-automatically.
+ *  [Read the guide](http://ninenines.eu/docs/en/cowboy/HEAD/guide/introduction)
+ *  Look at the examples in the `examples/` directory
+ *  Build API documentation with `make docs`; open `doc/index.html`
 
-It just so happens that Cowboy also includes an HTTP protocol handler.
-But Cowboy does nothing by default. You need to explicitly ask Cowboy
-to listen on a port with your chosen transport and protocol handlers.
-To do so, you must start a listener.
 
-A listener is a special kind of supervisor that manages both the
-acceptor pool and the request processes. It is named and can thus be
-started and stopped at will.
 
-An acceptor pool is a pool of processes whose only role is to accept
-new connections. It's good practice to have many of these processes
-as they are very cheap and allow much quicker response when you get
-many connections. Of course, as with everything else, you should
-**benchmark** before you decide what's best for you.
+Old README
+----------
 
-Cowboy includes a TCP transport handler for HTTP and an SSL transport
-handler for HTTPS. The transport handlers can of course be reused for
-other protocols like FTP or IRC.
+This and all following sections will be removed as soon as their
+equivalent appear in the Cowboy guide.
 
-The HTTP protocol requires one last thing to continue: dispatching rules.
-Don't worry about it right now though and continue reading, it'll all
-be explained.
+Cowboy does nothing by default.
 
-You can start and stop listeners by calling `cowboy:start_listener/6` and
-`cowboy:stop_listener/1` respectively.
+Cowboy uses Ranch for handling connections, and provides convenience
+functions to start and stop Ranch listeners. The Ranch application
+must always be started before Cowboy. The crypto application must
+also be started.
 
-The following example demonstrates the startup of a very simple listener.
+The `cowboy:start_http/4` function will handle HTTP connections
+using the TCP transport. Similarly, `cowboy:start_https/4` will
+handle HTTP connections using the SSL transport.
+
+You can start as many listeners as you need to. To allow this, you
+are required to give a name to your listeners. It is the first
+argument to the start functions. The name can be of any type.
+
+You can stop listeners using `cowboy:stop_listener/1`, giving it
+the name of the listener to be stopped.
+
+The following example demonstrates the startup of a very simple
+HTTP listener. It redirects all requests to the `my_handler`
+module.
 
 ``` erlang
+application:start(crypto),
+application:start(ranch),
 application:start(cowboy),
 Dispatch = [
-    %% {Host, list({Path, Handler, Opts})}
+    %% {URIHost, list({URIPath, Handler, Opts})}
     {'_', [{'_', my_handler, []}]}
 ],
-%% Name, NbAcceptors, Transport, TransOpts, Protocol, ProtoOpts
-cowboy:start_listener(my_http_listener, 100,
-    cowboy_tcp_transport, [{port, 8080}],
-    cowboy_http_protocol, [{dispatch, Dispatch}]
+%% Name, NbAcceptors, TransOpts, ProtoOpts
+cowboy:start_http(my_http_listener, 100, [{port, 8080}],
+    [{dispatch, Dispatch}]
 ).
 ```
 
-This is not enough though, you must also write the my_handler module
-to process the incoming HTTP requests. Of course Cowboy comes with
-predefined handlers for specific tasks but most of the time you'll
-want to write your own handlers for your application.
+This is not enough though, you must also write the `my_handler`
+module to process the incoming HTTP requests. Of course Cowboy
+comes with predefined handlers for specific tasks but most of
+the time you'll need to write the handlers appropriate for your
+application.
 
 Following is an example of a "Hello World!" HTTP handler.
 
@@ -100,7 +92,7 @@ init({tcp, http}, Req, Opts) ->
     {ok, Req, undefined_state}.
 
 handle(Req, State) ->
-    {ok, Req2} = cowboy_http_req:reply(200, [], <<"Hello World!">>, Req),
+    {ok, Req2} = cowboy_req:reply(200, [], <<"Hello World!">>, Req),
     {ok, Req2, State}.
 
 terminate(Req, State) ->
@@ -113,7 +105,7 @@ receiving such message, or timeout if it didn't arrive in time.
 
 This is especially useful for long-polling functionality, as Cowboy will handle
 process hibernation and timeouts properly, preventing mistakes if you were to
-write the code yourself. An handler of that kind can be defined like this:
+write the code yourself. A handler of that kind can be defined like this:
 
 ``` erlang
 -module(my_loop_handler).
@@ -125,7 +117,7 @@ init({tcp, http}, Req, Opts) ->
 	{loop, Req, undefined_state, ?TIMEOUT, hibernate}.
 
 info({reply, Body}, Req, State) ->
-	{ok, Req2} = cowboy_http_req:reply(200, [], Body, Req),
+	{ok, Req2} = cowboy_req:reply(200, [], Body, Req),
 	{ok, Req2, State};
 info(Message, Req, State) ->
 	{loop, Req, State, hibernate}.
@@ -136,16 +128,6 @@ terminate(Req, State) ->
 
 It is of course possible to combine both type of handlers together as long as
 you return the proper tuple from init/3.
-
-**Note**: versions prior to `0.4.0` used the
-[quoted](https://github.com/klaar/quoted.erl) library instead of the built in
-`cowboy_http:urldecode/2` function. If you want to retain this you must add it
-as a dependency to your application and add the following cowboy_http_protocol
-option:
-
-``` erlang
-    {urldecode, {fun quoted:from_url/2, quoted:make([])}}
-```
 
 Continue reading to learn how to dispatch rules and handle requests.
 
@@ -174,13 +156,13 @@ example, host rule `['...', <<"ninenines">>, <<"eu">>]` can match both
 "cowboy.bugs.ninenines.eu" and "ninenines.eu" and path rule
 `[<<"projects">>, '...']` can match both "/projects" and
 "/projects/cowboy/issues/42". The host leading segments and the path trailing
-segments can later be retrieved through `cowboy_http_req:host_info/1` and
-`cowboy_http_req:path_info/1`.
+segments can later be retrieved through `cowboy_req:host_info/1` and
+`cowboy_req:path_info/1`.
 
 Any other atom used as a token will bind the value to this atom when
 matching. To follow on our hostnames example, `[<<"ninenines">>, ext]`
 would bind the values `<<"eu">>` and `<<"fr">>` to the ext atom, that you
-can later retrieve in your handler by calling `cowboy_http_req:binding/{2,3}`.
+can later retrieve in your handler by calling `cowboy_req:binding/{2,3}`.
 
 You can also accept any match spec by using the atom `'_'` directly instead of
 a list of tokens. Our hello world example above uses this to forward all
@@ -193,7 +175,7 @@ Requests handling
 
 Requests are passed around in the Request variable. Although they are
 defined as a record, it is recommended to access them only through the
-cowboy_http_req module API.
+cowboy_req module API.
 
 You can retrieve the HTTP method, HTTP version, peer address and port,
 host tokens, raw host, used port, path tokens, raw path, query string
@@ -202,7 +184,7 @@ request. You can also read the request body, if any, optionally parsing
 it as a query string. Finally, the request allows you to send a response
 to the client.
 
-See the cowboy_http_req module for more information.
+See the cowboy_req module for more information.
 
 Websockets
 ----------
@@ -223,7 +205,7 @@ Websocket would look like this:
     websocket_info/3, websocket_terminate/3]).
 
 init({tcp, http}, Req, Opts) ->
-    {upgrade, protocol, cowboy_http_websocket}.
+    {upgrade, protocol, cowboy_websocket}.
 
 websocket_init(TransportName, Req, _Opts) ->
     erlang:start_timer(1000, self(), <<"Hello!">>),
@@ -253,38 +235,3 @@ regularly when support to the most recent drafts gets added. Features may
 be added, changed or removed before the protocol gets finalized. Cowboy
 tries to implement all drafts transparently and give a single interface to
 handle them all, however.
-
-Using Cowboy with other protocols
----------------------------------
-
-One of the strengths of Cowboy is of course that you can use it with any
-protocol you want. The only downside is that if it's not HTTP, you'll
-probably have to write the protocol handler yourself.
-
-The only exported function a protocol handler needs is the start_link/4
-function, with arguments ListenerPid, Socket, Transport and Opts. ListenerPid
-is the pid to the listener's gen_server, managing the connections. Socket is of
-course the client socket; Transport is the module name of the chosen transport
-handler and Opts is protocol options defined when starting the listener.
-
-After initializing your protocol, it is recommended to call the
-function cowboy:accept_ack/1 with the ListenerPid as argument,
-as it will ensure Cowboy has been able to fully initialize the socket.
-Anything you do past this point is up to you!
-
-If you need to change some socket options, like enabling raw mode for example,
-you can call the <em>Transport:setopts/2</em> function. It is the protocol's
-responsability to manage the socket usage, there should be no need for an user
-to specify that kind of options while starting a listener.
-
-You should definitely look at the cowboy_http_protocol module for a great
-example of fast request handling if you need to. Otherwise it's probably
-safe to use `{active, once}` mode and handle everything as it comes.
-
-Note that while you technically can run a protocol handler directly as a
-gen_server or a gen_fsm, it's probably not a good idea, as the only call
-you'll ever receive from Cowboy is the start_link/4 call. On the other
-hand, feel free to write a very basic protocol handler which then forwards
-requests to a gen_server or gen_fsm. By doing so however you must take
-care to supervise their processes as Cowboy only knows about the protocol
-handler itself.

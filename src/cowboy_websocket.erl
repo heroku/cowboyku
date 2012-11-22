@@ -13,17 +13,13 @@
 %% OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 %% @doc WebSocket protocol implementation.
-%%
-%% When using websockets, make sure that the crypto application is
-%% included in your release. If you are not using releases then there
-%% is no need for concern as crypto is already included.
--module(cowboy_http_websocket).
+-module(cowboy_websocket).
 
--export([upgrade/4]). %% API.
--export([handler_loop/4]). %% Internal.
+%% API.
+-export([upgrade/4]).
 
--include("http.hrl").
--include_lib("eunit/include/eunit.hrl").
+%% Internal.
+-export([handler_loop/4]).
 
 -type opcode() :: 0 | 1 | 2 | 8 | 9 | 10.
 -type mask_key() :: 0..16#ffffffff.
@@ -37,6 +33,8 @@
 	{fin, opcode(), binary()}. %% last fragment has been seen.
 
 -record(state, {
+	socket = undefined :: inet:socket(),
+	transport = undefined :: module(),
 	version :: 0 | 7 | 8 | 13,
 	handler :: module(),
 	opts :: any(),
@@ -55,56 +53,61 @@
 %% You do not need to call this function manually. To upgrade to the WebSocket
 %% protocol, you simply need to return <em>{upgrade, protocol, {@module}}</em>
 %% in your <em>cowboy_http_handler:init/3</em> handler function.
--spec upgrade(pid(), module(), any(), #http_req{}) -> closed.
+-spec upgrade(pid(), module(), any(), cowboy_req:req()) -> closed.
 upgrade(ListenerPid, Handler, Opts, Req) ->
-	cowboy_listener:move_connection(ListenerPid, websocket, self()),
-	case catch websocket_upgrade(#state{handler=Handler, opts=Opts}, Req) of
-		{ok, State, Req2} -> handler_init(State, Req2);
+	ranch_listener:remove_connection(ListenerPid),
+	{ok, Transport, Socket} = cowboy_req:transport(Req),
+	State = #state{socket=Socket, transport=Transport,
+		handler=Handler, opts=Opts},
+	case catch websocket_upgrade(State, Req) of
+		{ok, State2, Req2} -> handler_init(State2, Req2);
 		{'EXIT', _Reason} -> upgrade_error(Req)
 	end.
 
--spec websocket_upgrade(#state{}, #http_req{}) -> {ok, #state{}, #http_req{}}.
+-spec websocket_upgrade(#state{}, Req)
+	-> {ok, #state{}, Req} when Req::cowboy_req:req().
 websocket_upgrade(State, Req) ->
-	{ConnTokens, Req2}
-		= cowboy_http_req:parse_header('Connection', Req),
+	{ok, ConnTokens, Req2}
+		= cowboy_req:parse_header(<<"connection">>, Req),
 	true = lists:member(<<"upgrade">>, ConnTokens),
 	%% @todo Should probably send a 426 if the Upgrade header is missing.
-	{[<<"websocket">>], Req3} = cowboy_http_req:parse_header('Upgrade', Req2),
-	{Version, Req4} = cowboy_http_req:header(<<"Sec-Websocket-Version">>, Req3),
+	{ok, [<<"websocket">>], Req3}
+		= cowboy_req:parse_header(<<"upgrade">>, Req2),
+	{Version, Req4} = cowboy_req:header(<<"sec-websocket-version">>, Req3),
 	websocket_upgrade(Version, State, Req4).
 
 %% @todo Handle the Sec-Websocket-Protocol header.
 %% @todo Reply a proper error, don't die, if a required header is undefined.
--spec websocket_upgrade(undefined | <<_:8>>, #state{}, #http_req{})
-	-> {ok, #state{}, #http_req{}}.
+-spec websocket_upgrade(undefined | <<_:8>>, #state{}, Req)
+	-> {ok, #state{}, Req} when Req::cowboy_req:req().
 %% No version given. Assuming hixie-76 draft.
 %%
 %% We need to wait to send a reply back before trying to read the
 %% third part of the challenge key, because proxies will wait for
 %% a reply before sending it. Therefore we calculate the challenge
 %% key only in websocket_handshake/3.
-websocket_upgrade(undefined, State, Req=#http_req{meta=Meta}) ->
-	{Origin, Req2} = cowboy_http_req:header(<<"Origin">>, Req),
-	{Key1, Req3} = cowboy_http_req:header(<<"Sec-Websocket-Key1">>, Req2),
-	{Key2, Req4} = cowboy_http_req:header(<<"Sec-Websocket-Key2">>, Req3),
+websocket_upgrade(undefined, State, Req) ->
+	{Origin, Req2} = cowboy_req:header(<<"origin">>, Req),
+	{Key1, Req3} = cowboy_req:header(<<"sec-websocket-key1">>, Req2),
+	{Key2, Req4} = cowboy_req:header(<<"sec-websocket-key2">>, Req3),
 	false = lists:member(undefined, [Origin, Key1, Key2]),
 	EOP = binary:compile_pattern(<< 255 >>),
 	{ok, State#state{version=0, origin=Origin, challenge={Key1, Key2},
-		eop=EOP}, Req4#http_req{meta=[{websocket_version, 0}|Meta]}};
+		eop=EOP}, cowboy_req:set_meta(websocket_version, 0, Req4)};
 %% Versions 7 and 8. Implementation follows the hybi 7 through 17 drafts.
-websocket_upgrade(Version, State, Req=#http_req{meta=Meta})
+websocket_upgrade(Version, State, Req)
 		when Version =:= <<"7">>; Version =:= <<"8">>;
 			Version =:= <<"13">> ->
-	{Key, Req2} = cowboy_http_req:header(<<"Sec-Websocket-Key">>, Req),
+	{Key, Req2} = cowboy_req:header(<<"sec-websocket-key">>, Req),
 	false = Key =:= undefined,
 	Challenge = hybi_challenge(Key),
 	IntVersion = list_to_integer(binary_to_list(Version)),
 	{ok, State#state{version=IntVersion, challenge=Challenge},
-		Req2#http_req{meta=[{websocket_version, IntVersion}|Meta]}}.
+		cowboy_req:set_meta(websocket_version, IntVersion, Req2)}.
 
--spec handler_init(#state{}, #http_req{}) -> closed.
-handler_init(State=#state{handler=Handler, opts=Opts},
-		Req=#http_req{transport=Transport}) ->
+-spec handler_init(#state{}, cowboy_req:req()) -> closed.
+handler_init(State=#state{transport=Transport, handler=Handler, opts=Opts},
+		Req) ->
 	try Handler:websocket_init(Transport:name(), Req, Opts) of
 		{ok, Req2, HandlerState} ->
 			websocket_handshake(State, Req2, HandlerState);
@@ -118,10 +121,11 @@ handler_init(State=#state{handler=Handler, opts=Opts},
 			websocket_handshake(State#state{timeout=Timeout,
 				hibernate=true}, Req2, HandlerState);
 		{shutdown, Req2} ->
-			upgrade_denied(Req2)
+			cowboy_req:ensure_response(Req2, 400),
+			closed
 	catch Class:Reason ->
 		upgrade_error(Req),
-		PLReq = lists:zip(record_info(fields, http_req), tl(tuple_to_list(Req))),
+		PLReq = cowboy_req:to_list(Req),
 		error_logger:error_msg(
 			"** Handler ~p terminating in websocket_init/3~n"
 			"   for the reason ~p:~p~n** Options were ~p~n"
@@ -129,50 +133,38 @@ handler_init(State=#state{handler=Handler, opts=Opts},
 			[Handler, Class, Reason, Opts, PLReq, erlang:get_stacktrace()])
 	end.
 
--spec upgrade_error(#http_req{}) -> closed.
+-spec upgrade_error(cowboy_req:req()) -> closed.
 upgrade_error(Req) ->
-	{ok, _Req2} = cowboy_http_req:reply(400, [], [],
-		Req#http_req{resp_state=waiting}),
-	closed.
+	receive
+		{cowboy_req, resp_sent} -> closed
+	after 0 ->
+		_ = cowboy_req:reply(400, [], [], Req),
+		closed
+	end.
 
-%% @see cowboy_http_protocol:ensure_response/1
--spec upgrade_denied(#http_req{}) -> closed.
-upgrade_denied(#http_req{resp_state=done}) ->
-	closed;
-upgrade_denied(Req=#http_req{resp_state=waiting}) ->
-	{ok, _Req2} = cowboy_http_req:reply(400, [], [], Req),
-	closed;
-upgrade_denied(#http_req{method='HEAD', resp_state=chunks}) ->
-	closed;
-upgrade_denied(#http_req{socket=Socket, transport=Transport,
-		resp_state=chunks}) ->
-	Transport:send(Socket, <<"0\r\n\r\n">>),
-	closed.
-
--spec websocket_handshake(#state{}, #http_req{}, any()) -> closed.
-websocket_handshake(State=#state{version=0, origin=Origin,
-		challenge={Key1, Key2}}, Req=#http_req{socket=Socket,
-		transport=Transport, raw_host=Host, port=Port,
-		raw_path=Path, raw_qs=QS}, HandlerState) ->
-	Location = hixie76_location(Transport:name(), Host, Port, Path, QS),
-	{ok, Req2} = cowboy_http_req:upgrade_reply(
+-spec websocket_handshake(#state{}, cowboy_req:req(), any()) -> closed.
+websocket_handshake(State=#state{socket=Socket, transport=Transport,
+		version=0, origin=Origin, challenge={Key1, Key2}},
+		Req, HandlerState) ->
+	{<< "http", Location/binary >>, Req1} = cowboy_req:url(Req),
+	{ok, Req2} = cowboy_req:upgrade_reply(
 		<<"101 WebSocket Protocol Handshake">>,
 		[{<<"Upgrade">>, <<"WebSocket">>},
-		 {<<"Sec-Websocket-Location">>, Location},
+		 {<<"Sec-Websocket-Location">>, << "ws", Location/binary >>},
 		 {<<"Sec-Websocket-Origin">>, Origin}],
-		Req#http_req{resp_state=waiting}),
+		Req1),
 	%% Flush the resp_sent message before moving on.
-	receive {cowboy_http_req, resp_sent} -> ok after 0 -> ok end,
+	receive {cowboy_req, resp_sent} -> ok after 0 -> ok end,
 	%% We replied with a proper response. Proxies should be happy enough,
 	%% we can now read the 8 last bytes of the challenge keys and send
 	%% the challenge response directly to the socket.
 	%%
 	%% We use a trick here to read exactly 8 bytes of the body regardless
 	%% of what's in the buffer.
-	{ok, Req3} = cowboy_http_req:init_stream(
+	{ok, Req3} = cowboy_req:init_stream(
 		fun cowboy_http:te_identity/2, {0, 8},
 		fun cowboy_http:ce_identity/1, Req2),
-	case cowboy_http_req:body(Req3) of
+	case cowboy_req:body(Req3) of
 		{ok, Key3, Req4} ->
 			Challenge = hixie76_challenge(Key1, Key2, Key3),
 			Transport:send(Socket, Challenge),
@@ -181,29 +173,29 @@ websocket_handshake(State=#state{version=0, origin=Origin,
 		_Any ->
 			closed %% If an error happened reading the body, stop there.
 	end;
-websocket_handshake(State=#state{challenge=Challenge},
-		Req=#http_req{transport=Transport}, HandlerState) ->
-	{ok, Req2} = cowboy_http_req:upgrade_reply(
+websocket_handshake(State=#state{transport=Transport, challenge=Challenge},
+		Req, HandlerState) ->
+	{ok, Req2} = cowboy_req:upgrade_reply(
 		101,
 		[{<<"Upgrade">>, <<"websocket">>},
 		 {<<"Sec-Websocket-Accept">>, Challenge}],
-		Req#http_req{resp_state=waiting}),
+		Req),
 	%% Flush the resp_sent message before moving on.
-	receive {cowboy_http_req, resp_sent} -> ok after 0 -> ok end,
+	receive {cowboy_req, resp_sent} -> ok after 0 -> ok end,
 	handler_before_loop(State#state{messages=Transport:messages()},
 		Req2, HandlerState, <<>>).
 
--spec handler_before_loop(#state{}, #http_req{}, any(), binary()) -> closed.
-handler_before_loop(State=#state{hibernate=true},
-		Req=#http_req{socket=Socket, transport=Transport},
-		HandlerState, SoFar) ->
+-spec handler_before_loop(#state{}, cowboy_req:req(), any(), binary()) -> closed.
+handler_before_loop(State=#state{
+			socket=Socket, transport=Transport, hibernate=true},
+		Req, HandlerState, SoFar) ->
 	Transport:setopts(Socket, [{active, once}]),
 	State2 = handler_loop_timeout(State),
 	catch erlang:hibernate(?MODULE, handler_loop,
 		[State2#state{hibernate=false}, Req, HandlerState, SoFar]),
 	closed;
-handler_before_loop(State, Req=#http_req{socket=Socket, transport=Transport},
-		HandlerState, SoFar) ->
+handler_before_loop(State=#state{socket=Socket, transport=Transport},
+		Req, HandlerState, SoFar) ->
 	Transport:setopts(Socket, [{active, once}]),
 	State2 = handler_loop_timeout(State),
 	handler_loop(State2, Req, HandlerState, SoFar).
@@ -218,9 +210,10 @@ handler_loop_timeout(State=#state{timeout=Timeout, timeout_ref=PrevRef}) ->
 	State#state{timeout_ref=TRef}.
 
 %% @private
--spec handler_loop(#state{}, #http_req{}, any(), binary()) -> closed.
-handler_loop(State=#state{messages={OK, Closed, Error}, timeout_ref=TRef},
-		Req=#http_req{socket=Socket}, HandlerState, SoFar) ->
+-spec handler_loop(#state{}, cowboy_req:req(), any(), binary()) -> closed.
+handler_loop(State=#state{
+			socket=Socket, messages={OK, Closed, Error}, timeout_ref=TRef},
+		Req, HandlerState, SoFar) ->
 	receive
 		{OK, Socket, Data} ->
 			websocket_data(State, Req, HandlerState,
@@ -238,7 +231,7 @@ handler_loop(State=#state{messages={OK, Closed, Error}, timeout_ref=TRef},
 				SoFar, websocket_info, Message, fun handler_before_loop/4)
 	end.
 
--spec websocket_data(#state{}, #http_req{}, any(), binary()) -> closed.
+-spec websocket_data(#state{}, cowboy_req:req(), any(), binary()) -> closed.
 %% No more data.
 websocket_data(State, Req, HandlerState, <<>>) ->
 	handler_before_loop(State, Req, HandlerState, <<>>);
@@ -295,8 +288,7 @@ websocket_data(State, Req, HandlerState,
 websocket_data(State, Req, HandlerState, _Data) ->
 	websocket_close(State, Req, HandlerState, {error, badframe}).
 
-
--spec websocket_data(#state{}, #http_req{}, any(), non_neg_integer(),
+-spec websocket_data(#state{}, cowboy_req:req(), any(), non_neg_integer(),
 		non_neg_integer(), non_neg_integer(), non_neg_integer(),
 		non_neg_integer(), binary(), binary()) -> closed.
 %% A fragmented message MUST start a non-zero opcode.
@@ -339,7 +331,7 @@ websocket_data(State=#state{frag_state={nofin, Opcode, Payloads}}, Req,
 %% control messages MUST NOT use 7+16 bits or 7+64 bits payload length prefixes
 websocket_data(State, Req, HandlerState, _Fin, _Rsv, Opcode, _Mask, PayloadLen,
 		_Rest, _Data) when Opcode >= 8, PayloadLen > 125 ->
-	 websocket_close(State, Req, HandlerState, {error, protocol});
+	 websocket_close(State, Req, HandlerState, {error, badframe});
 %% unfragmented message. unmask and dispatch the message.
 websocket_data(State=#state{version=Version}, Req, HandlerState, _Fin=1, _Rsv=0,
 		Opcode, Mask, PayloadLen, Rest, Data) when Version =/= 0 ->
@@ -350,9 +342,8 @@ websocket_data(State, Req, HandlerState, _Fin, _Rsv, _Opcode, _Mask,
 		_PayloadLen, _Rest, _Data) ->
 		websocket_close(State, Req, HandlerState, {error, badframe}).
 
-
 %% hybi routing depending on whether unmasking is needed.
--spec websocket_before_unmask(#state{}, #http_req{}, any(), binary(),
+-spec websocket_before_unmask(#state{}, cowboy_req:req(), any(), binary(),
 	binary(), opcode(), 0 | 1, non_neg_integer() | undefined) -> closed.
 websocket_before_unmask(State, Req, HandlerState, Data,
 		Rest, Opcode, Mask, PayloadLen) ->
@@ -369,14 +360,14 @@ websocket_before_unmask(State, Req, HandlerState, Data,
 	end.
 
 %% hybi unmasking.
--spec websocket_unmask(#state{}, #http_req{}, any(), binary(),
+-spec websocket_unmask(#state{}, cowboy_req:req(), any(), binary(),
 	opcode(), binary(), mask_key()) -> closed.
 websocket_unmask(State, Req, HandlerState, RemainingData,
 		Opcode, Payload, MaskKey) ->
 	websocket_unmask(State, Req, HandlerState, RemainingData,
 		Opcode, Payload, MaskKey, <<>>).
 
--spec websocket_unmask(#state{}, #http_req{}, any(), binary(),
+-spec websocket_unmask(#state{}, cowboy_req:req(), any(), binary(),
 	opcode(), binary(), mask_key(), binary()) -> closed.
 websocket_unmask(State, Req, HandlerState, RemainingData,
 		Opcode, << O:32, Rest/bits >>, MaskKey, Acc) ->
@@ -407,7 +398,7 @@ websocket_unmask(State, Req, HandlerState, RemainingData,
 		Opcode, Acc).
 
 %% hybi dispatching.
--spec websocket_dispatch(#state{}, #http_req{}, any(), binary(),
+-spec websocket_dispatch(#state{}, cowboy_req:req(), any(), binary(),
 	opcode(), binary()) -> closed.
 %% First frame of a fragmented message unmasked. Expect intermediate or last.
 websocket_dispatch(State=#state{frag_state={nofin, Opcode}}, Req, HandlerState,
@@ -438,8 +429,8 @@ websocket_dispatch(State, Req, HandlerState, RemainingData, 2, Payload) ->
 websocket_dispatch(State, Req, HandlerState, _RemainingData, 8, _Payload) ->
 	websocket_close(State, Req, HandlerState, {normal, closed});
 %% Ping control frame. Send a pong back and forward the ping to the handler.
-websocket_dispatch(State, Req=#http_req{socket=Socket, transport=Transport},
-		HandlerState, RemainingData, 9, Payload) ->
+websocket_dispatch(State=#state{socket=Socket, transport=Transport},
+		Req, HandlerState, RemainingData, 9, Payload) ->
 	Len = hybi_payload_length(byte_size(Payload)),
 	Transport:send(Socket, << 1:1, 0:3, 10:4, 0:1, Len/bits, Payload/binary >>),
 	handler_call(State, Req, HandlerState, RemainingData,
@@ -449,7 +440,7 @@ websocket_dispatch(State, Req, HandlerState, RemainingData, 10, Payload) ->
 	handler_call(State, Req, HandlerState, RemainingData,
 		websocket_handle, {pong, Payload}, fun websocket_data/4).
 
--spec handler_call(#state{}, #http_req{}, any(), binary(),
+-spec handler_call(#state{}, cowboy_req:req(), any(), binary(),
 	atom(), any(), fun()) -> closed.
 handler_call(State=#state{handler=Handler, opts=Opts}, Req, HandlerState,
 		RemainingData, Callback, Message, NextState) ->
@@ -459,17 +450,28 @@ handler_call(State=#state{handler=Handler, opts=Opts}, Req, HandlerState,
 		{ok, Req2, HandlerState2, hibernate} ->
 			NextState(State#state{hibernate=true},
 				Req2, HandlerState2, RemainingData);
-		{reply, Payload, Req2, HandlerState2} ->
-			websocket_send(Payload, State, Req2),
+		{reply, Payload, Req2, HandlerState2}
+				when is_tuple(Payload) ->
+			ok = websocket_send(Payload, State),
 			NextState(State, Req2, HandlerState2, RemainingData);
-		{reply, Payload, Req2, HandlerState2, hibernate} ->
-			websocket_send(Payload, State, Req2),
+		{reply, Payload, Req2, HandlerState2, hibernate}
+				when is_tuple(Payload) ->
+			ok = websocket_send(Payload, State),
+			NextState(State#state{hibernate=true},
+				Req2, HandlerState2, RemainingData);
+		{reply, Payload, Req2, HandlerState2}
+				when is_list(Payload) ->
+			ok = websocket_send_many(Payload, State),
+			NextState(State, Req2, HandlerState2, RemainingData);
+		{reply, Payload, Req2, HandlerState2, hibernate}
+				when is_list(Payload) ->
+			ok = websocket_send_many(Payload, State),
 			NextState(State#state{hibernate=true},
 				Req2, HandlerState2, RemainingData);
 		{shutdown, Req2, HandlerState2} ->
 			websocket_close(State, Req2, HandlerState2, {normal, shutdown})
 	catch Class:Reason ->
-		PLReq = lists:zip(record_info(fields, http_req), tl(tuple_to_list(Req))),
+		PLReq = cowboy_req:to_list(Req),
 		error_logger:error_msg(
 			"** Handler ~p terminating in ~p/3~n"
 			"   for the reason ~p:~p~n** Message was ~p~n"
@@ -480,16 +482,16 @@ handler_call(State=#state{handler=Handler, opts=Opts}, Req, HandlerState,
 		websocket_close(State, Req, HandlerState, {error, handler})
 	end.
 
--spec websocket_send(binary(), #state{}, #http_req{}) -> closed | ignore.
+-spec websocket_send({text | binary | ping | pong, binary()}, #state{})
+	-> ok | {error, atom()}.
 %% hixie-76 text frame.
-websocket_send({text, Payload}, #state{version=0},
-		#http_req{socket=Socket, transport=Transport}) ->
+websocket_send({text, Payload}, #state{
+		socket=Socket, transport=Transport, version=0}) ->
 	Transport:send(Socket, [0, Payload, 255]);
 %% Ignore all unknown frame types for compatibility with hixie 76.
-websocket_send(_Any, #state{version=0}, _Req) ->
-	ignore;
-websocket_send({Type, Payload}, _State,
-		#http_req{socket=Socket, transport=Transport}) ->
+websocket_send(_Any, #state{version=0}) ->
+	ok;
+websocket_send({Type, Payload}, #state{socket=Socket, transport=Transport}) ->
 	Opcode = case Type of
 		text -> 1;
 		binary -> 2;
@@ -500,25 +502,34 @@ websocket_send({Type, Payload}, _State,
 	Transport:send(Socket, [<< 1:1, 0:3, Opcode:4, 0:1, Len/bits >>,
 		Payload]).
 
--spec websocket_close(#state{}, #http_req{}, any(), {atom(), atom()}) -> closed.
-websocket_close(State=#state{version=0}, Req=#http_req{socket=Socket,
-		transport=Transport}, HandlerState, Reason) ->
+-spec websocket_send_many([{text | binary | ping | pong, binary()}], #state{})
+	-> ok | {error, atom()}.
+websocket_send_many([], _) ->
+	ok;
+websocket_send_many([Frame|Tail], State) ->
+	ok = websocket_send(Frame, State),
+	websocket_send_many(Tail, State).
+
+-spec websocket_close(#state{}, cowboy_req:req(), any(), {atom(), atom()})
+	-> closed.
+websocket_close(State=#state{socket=Socket, transport=Transport, version=0},
+		Req, HandlerState, Reason) ->
 	Transport:send(Socket, << 255, 0 >>),
 	handler_terminate(State, Req, HandlerState, Reason);
 %% @todo Send a Payload? Using Reason is usually good but we're quite careless.
-websocket_close(State, Req=#http_req{socket=Socket,
-		transport=Transport}, HandlerState, Reason) ->
+websocket_close(State=#state{socket=Socket, transport=Transport},
+		Req, HandlerState, Reason) ->
 	Transport:send(Socket, << 1:1, 0:3, 8:4, 0:8 >>),
 	handler_terminate(State, Req, HandlerState, Reason).
 
--spec handler_terminate(#state{}, #http_req{},
+-spec handler_terminate(#state{}, cowboy_req:req(),
 	any(), atom() | {atom(), atom()}) -> closed.
 handler_terminate(#state{handler=Handler, opts=Opts},
 		Req, HandlerState, TerminateReason) ->
 	try
 		Handler:websocket_terminate(TerminateReason, Req, HandlerState)
 	catch Class:Reason ->
-		PLReq = lists:zip(record_info(fields, http_req), tl(tuple_to_list(Req))),
+		PLReq = cowboy_req:to_list(Req),
 		error_logger:error_msg(
 			"** Handler ~p terminating in websocket_terminate/3~n"
 			"   for the reason ~p:~p~n** Initial reason was ~p~n"
@@ -543,29 +554,6 @@ hixie76_key_to_integer(Key) ->
 	Spaces = length([C || << C >> <= Key, C =:= 32]),
 	Number div Spaces.
 
--spec hixie76_location(atom(), binary(), inet:port_number(),
-	binary(), binary()) -> binary().
-hixie76_location(Protocol, Host, Port, Path, <<>>) ->
-    << (hixie76_location_protocol(Protocol))/binary, "://", Host/binary,
-       (hixie76_location_port(Protocol, Port))/binary, Path/binary>>;
-hixie76_location(Protocol, Host, Port, Path, QS) ->
-    << (hixie76_location_protocol(Protocol))/binary, "://", Host/binary,
-       (hixie76_location_port(Protocol, Port))/binary, Path/binary, "?", QS/binary >>.
-
--spec hixie76_location_protocol(atom()) -> binary().
-hixie76_location_protocol(ssl) -> <<"wss">>;
-hixie76_location_protocol(_)   -> <<"ws">>.
-
-%% @todo We should add a secure/0 function to transports
-%% instead of relying on their name.
--spec hixie76_location_port(atom(), inet:port_number()) -> binary().
-hixie76_location_port(ssl, 443) ->
-	<<>>;
-hixie76_location_port(tcp, 80) ->
-	<<>>;
-hixie76_location_port(_, Port) ->
-	<<":", (list_to_binary(integer_to_list(Port)))/binary>>.
-
 %% hybi specific.
 
 -spec hybi_challenge(binary()) -> binary().
@@ -581,26 +569,3 @@ hybi_payload_length(N) ->
 		N when N =< 16#ffff -> << 126:7, N:16 >>;
 		N when N =< 16#7fffffffffffffff -> << 127:7, N:64 >>
 	end.
-
-%% Tests.
-
--ifdef(TEST).
-
-hixie76_location_test() ->
-	?assertEqual(<<"ws://localhost/path">>,
-		hixie76_location(tcp, <<"localhost">>, 80, <<"/path">>, <<>>)),
-	?assertEqual(<<"ws://localhost:443/path">>,
-		hixie76_location(tcp, <<"localhost">>, 443, <<"/path">>, <<>>)),
-	?assertEqual(<<"ws://localhost:8080/path">>,
-		hixie76_location(tcp, <<"localhost">>, 8080, <<"/path">>, <<>>)),
-	?assertEqual(<<"ws://localhost:8080/path?dummy=2785">>,
-		hixie76_location(tcp, <<"localhost">>, 8080, <<"/path">>, <<"dummy=2785">>)),
-	?assertEqual(<<"wss://localhost/path">>,
-		hixie76_location(ssl, <<"localhost">>, 443, <<"/path">>, <<>>)),
-	?assertEqual(<<"wss://localhost:8443/path">>,
-		hixie76_location(ssl, <<"localhost">>, 8443, <<"/path">>, <<>>)),
-	?assertEqual(<<"wss://localhost:8443/path?dummy=2785">>,
-		hixie76_location(ssl, <<"localhost">>, 8443, <<"/path">>, <<"dummy=2785">>)),
-	ok.
-
--endif.

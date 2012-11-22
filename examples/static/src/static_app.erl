@@ -13,15 +13,15 @@
 start(_Type, _Args) ->
 	Dispatch = [
 		{'_', [
-			{['...'], cowboy_http_static, [
-				{directory, {priv_dir, static, []}}
+			{['...'], cowboy_static, [
+				{directory, {priv_dir, static, []}},
+				{mimetypes, {fun mimetypes:path_to_mimes/2, default}}
 			]} 
 		]}
 	],
-	{ok, _} = cowboy:start_listener(http, 100,
-		cowboy_tcp_transport, [{port, 8080}],
-		cowboy_http_protocol, [{dispatch, Dispatch}]
-	),
+	{ok, _} = cowboy:start_http(http, 100, [{port, 8080}], [
+		{dispatch, Dispatch}
+	]),
 	static_sup:start_link().
 
 stop(_State) ->

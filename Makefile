@@ -9,10 +9,10 @@ all: app
 
 # Application.
 
-deps:
+deps/ranch:
 	@$(REBAR) get-deps
 
-app: deps
+app: deps/ranch
 	@$(REBAR) compile
 
 clean:
@@ -43,16 +43,16 @@ eunit:
 	@$(REBAR) -C rebar.tests.config eunit skip_deps=true
 
 ct:
-	@$(REBAR) -C rebar.tests.config ct skip_deps=true suites=http,proper,ws
+	@$(REBAR) -C rebar.tests.config ct skip_deps=true suites=http,ws
 
 intct:
-	@$(REBAR) -C rebar.tests.config ct skip_deps=true suites=http,proper,ws,autobahn
+	@$(REBAR) -C rebar.tests.config ct skip_deps=true suites=http,ws,autobahn
 
 # Dialyzer.
 
 build-plt:
 	@$(DIALYZER) --build_plt --output_plt .$(PROJECT).plt \
-		--apps kernel stdlib sasl inets crypto public_key ssl
+		--apps kernel stdlib sasl inets crypto public_key ssl deps/*
 
 dialyze:
 	@$(DIALYZER) --src src --plt .$(PROJECT).plt --no_native \
