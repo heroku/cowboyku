@@ -1,6 +1,4 @@
-%% -*- mode: erlang; tab-width: 4; indent-tabs-mode: t; -*-
-%%
-%% Copyright (c) 2012, Loïc Hoguin <essen@ninenines.eu>
+%% Copyright (c) 2012-2013, Loïc Hoguin <essen@ninenines.eu>
 %%
 %% Permission to use, copy, modify, and/or distribute this software for any
 %% purpose with or without fee is hereby granted, provided that the above
