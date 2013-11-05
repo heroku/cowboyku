@@ -37,6 +37,7 @@ groups() ->
 
 init_per_suite(Config) ->
 	application:start(crypto),
+	application:start(cowlib),
 	application:start(ranch),
 	application:start(cowboy),
 	%% /tmp must be used as the parent directory for the virtualenv because
@@ -58,6 +59,7 @@ end_per_suite(_Config) ->
 	os:cmd("deactivate"),
 	application:stop(cowboy),
 	application:stop(ranch),
+	application:stop(cowlib),
 	application:stop(crypto),
 	ok.
 
@@ -76,7 +78,7 @@ end_per_group(Listener, _Config) ->
 
 init_dispatch() ->
 	cowboy_router:compile([{"localhost", [
-		{"/echo", websocket_echo_handler, []}]}]).
+		{"/echo", autobahn_echo, []}]}]).
 
 %% autobahn cases
 

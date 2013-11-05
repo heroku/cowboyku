@@ -15,6 +15,21 @@ describing the resource and modifying the machine's behavior.
 As the REST handler is still subject to change, the documentation is
 still thin. This state of affair will be improved in the coming weeks.
 
+Usage
+-----
+
+Like Websocket, REST is a sub-protocol of HTTP. It therefore
+requires a protocol upgrade.
+
+``` erlang
+init({tcp, http}, Req, Opts) ->
+    {upgrade, protocol, cowboy_rest}.
+```
+
+Cowboy will then switch to the REST protocol and start executing
+the flow diagram, starting from `rest_init/2` if it's defined,
+and ending with `rest_terminate/2` also if defined.
+
 Flow diagram
 ------------
 
@@ -66,11 +81,11 @@ empty column means there is no default value for this callback.
 
 | Callback name          | Default value             |
 | ---------------------- | ------------------------- |
-| allowed_methods        | `[<<"GET">>, <<"HEAD">>]` |
+| allowed_methods        | `[<<"GET">>, <<"HEAD">>, <<"OPTIONS">>]` |
 | allow_missing_post     | `true`                    |
 | charsets_provided      | skip                      |
 | content_types_accepted |                           |
-| content_types_provided |                           |
+| content_types_provided | `[{{<<"text">>, <<"html">>, '*'}, to_html}] ` |
 | delete_completed       | `true`                    |
 | delete_resource        | `false`                   |
 | expires                | `undefined`               |
@@ -106,17 +121,34 @@ each function. For example, `from_html` and `to_html` indicate
 in the first case that we're accepting a resource given as HTML,
 and in the second case that we send one as HTML.
 
-Usage
------
+Meta data
+---------
 
-Like Websocket, REST is a sub-protocol of HTTP. It therefore
-requires a protocol upgrade.
+Cowboy will set informative meta values at various points of the
+execution. You can retrieve them using `cowboy_req:meta/{2,3}`.
+The values are defined in the following table.
 
-``` erlang
-init({tcp, http}, Req, Opts) ->
-    {upgrade, protocol, cowboy_rest}.
-```
+| Meta key   | Details                                              |
+| -----------| ---------------------------------------------------- |
+| media_type | The content-type negotiated for the response entity. |
+| language   | The language negotiated for the response entity.     |
+| charset    | The charset negotiated for the response entity.      |
 
-Cowboy will then switch to the REST protocol and start executing
-the flow diagram, starting from `rest_init/2` if it's defined,
-and ending with `rest_terminate/2` also if defined.
+They can be used to send a proper body with the response to a
+request that used a method other than HEAD or GET.
+
+Response headers
+----------------
+
+Cowboy will set response headers automatically over the execution
+of the REST code. They are listed in the following table.
+
+| Header name      | Details                                            |
+| ---------------- | -------------------------------------------------- |
+| content-language | Language used in the response body                 |
+| content-type     | Media type and charset of the response body        |
+| etag             | Etag of the resource                               |
+| expires          | Expiration date of the resource                    |
+| last-modified    | Last modification date for the resource            |
+| location         | Relative or absolute URI to the requested resource |
+| vary             | List of headers that may change the representation of the resource |

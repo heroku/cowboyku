@@ -45,7 +45,7 @@
 	language_a :: undefined | binary(),
 
 	%% Charset.
-	charsets_p = [] :: [{binary(), integer()}],
+	charsets_p = [] :: [binary()],
 	charset_a :: undefined | binary(),
 
 	%% Whether the resource exists.
@@ -66,30 +66,26 @@
 	-> {ok, Req, Env} | {error, 500, Req}
 	when Req::cowboy_req:req(), Env::cowboy_middleware:env().
 upgrade(Req, Env, Handler, HandlerOpts) ->
-	try
-		Method = cowboy_req:get(method, Req),
-		case erlang:function_exported(Handler, rest_init, 2) of
-			true ->
-				try Handler:rest_init(Req, HandlerOpts) of
-					{ok, Req2, HandlerState} ->
-						service_available(Req2, #state{env=Env, method=Method,
-							handler=Handler, handler_state=HandlerState})
-				catch Class:Reason ->
-					error_logger:error_msg(
-						"** Cowboy handler ~p terminating in ~p/~p~n"
-						"   for the reason ~p:~p~n** Options were ~p~n"
-						"** Request was ~p~n** Stacktrace: ~p~n~n",
-						[Handler, rest_init, 2, Class, Reason, HandlerOpts,
-							cowboy_req:to_list(Req), erlang:get_stacktrace()]),
-					{error, 500, Req}
-				end;
-			false ->
-				service_available(Req, #state{env=Env, method=Method,
-					handler=Handler})
-		end
-	catch
-		throw:{?MODULE, error} ->
-			{error, 500, Req}
+	Method = cowboy_req:get(method, Req),
+	case erlang:function_exported(Handler, rest_init, 2) of
+		true ->
+			try Handler:rest_init(Req, HandlerOpts) of
+				{ok, Req2, HandlerState} ->
+					service_available(Req2, #state{env=Env, method=Method,
+						handler=Handler, handler_state=HandlerState})
+			catch Class:Reason ->
+				cowboy_req:maybe_reply(500, Req),
+				erlang:Class([
+					{reason, Reason},
+					{mfa, {Handler, rest_init, 2}},
+					{stacktrace, erlang:get_stacktrace()},
+					{req, cowboy_req:to_list(Req)},
+					{opts, HandlerOpts}
+				])
+			end;
+		false ->
+			service_available(Req, #state{env=Env, method=Method,
+				handler=Handler})
 	end.
 
 service_available(Req, State) ->
@@ -136,8 +132,7 @@ allowed_methods(Req, State=#state{method=Method}) ->
 			State2 = State#state{handler_state=HandlerState},
 			case lists:member(Method, List) of
 				true when Method =:= <<"OPTIONS">> ->
-					next(Req2, State2#state{allowed_methods=
-						[<<"HEAD">>, <<"GET">>, <<"OPTIONS">>]},
+					next(Req2, State2#state{allowed_methods=List},
 						fun malformed_request/2);
 				true ->
 					next(Req2, State2, fun malformed_request/2);
@@ -146,6 +141,9 @@ allowed_methods(Req, State=#state{method=Method}) ->
 			end
 	end.
 
+method_not_allowed(Req, State, []) ->
+	Req2 = cowboy_req:set_resp_header(<<"allow">>, <<>>, Req),
+	respond(Req2, State, 405);
 method_not_allowed(Req, State, Methods) ->
 	<< ", ", Allow/binary >> = << << ", ", M/binary >> || M <- Methods >>,
 	Req2 = cowboy_req:set_resp_header(<<"allow">>, Allow, Req),
@@ -187,6 +185,9 @@ valid_entity_length(Req, State) ->
 %% you should do it directly in the options/2 call using set_resp_headers.
 options(Req, State=#state{allowed_methods=Methods, method= <<"OPTIONS">>}) ->
 	case call(Req, State, options) of
+		no_call when Methods =:= [] ->
+			Req2 = cowboy_req:set_resp_header(<<"allow">>, <<>>, Req),
+			respond(Req2, State, 200);
 		no_call ->
 			<< ", ", Allow/binary >>
 				= << << ", ", M/binary >> || M <- Methods >>,
@@ -219,13 +220,25 @@ options(Req, State) ->
 content_types_provided(Req, State) ->
 	case call(Req, State, content_types_provided) of
 		no_call ->
-			not_acceptable(Req, State);
+			State2 = State#state{
+				content_types_p=[{{<<"text">>, <<"html">>, '*'}, to_html}]},
+			case cowboy_req:parse_header(<<"accept">>, Req) of
+				{error, badarg} ->
+					respond(Req, State2, 400);
+				{ok, undefined, Req2} ->
+					languages_provided(
+						cowboy_req:set_meta(media_type, {<<"text">>, <<"html">>, []}, Req2),
+						State2#state{content_type_a={{<<"text">>, <<"html">>, []}, to_html}});
+				{ok, Accept, Req2} ->
+					Accept2 = prioritize_accept(Accept),
+					choose_media_type(Req2, State2, Accept2)
+			end;
 		{halt, Req2, HandlerState} ->
 			terminate(Req2, State#state{handler_state=HandlerState});
 		{[], Req2, HandlerState} ->
 			not_acceptable(Req2, State#state{handler_state=HandlerState});
 		{CTP, Req2, HandlerState} ->
-		    CTP2 = [normalize_content_types(P) || P <- CTP],
+			CTP2 = [normalize_content_types(P) || P <- CTP],
 			State2 = State#state{
 				handler_state=HandlerState, content_types_p=CTP2},
 			case cowboy_req:parse_header(<<"accept">>, Req2) of
@@ -244,7 +257,7 @@ content_types_provided(Req, State) ->
 
 normalize_content_types({ContentType, Callback})
 		when is_binary(ContentType) ->
-    {cowboy_http:content_type(ContentType), Callback};
+	{cowboy_http:content_type(ContentType), Callback};
 normalize_content_types(Normalized) ->
 	Normalized.
 
@@ -395,8 +408,7 @@ charsets_provided(Req, State) ->
 				cowboy_req:parse_header(<<"accept-charset">>, Req2),
 			case AcceptCharset of
 				undefined ->
-					set_content_type(Req3, State2#state{
-						charset_a=element(1, hd(CP))});
+					set_content_type(Req3, State2#state{charset_a=hd(CP)});
 				AcceptCharset ->
 					AcceptCharset2 = prioritize_charsets(AcceptCharset),
 					choose_charset(Req3, State2, AcceptCharset2)
@@ -416,7 +428,11 @@ prioritize_charsets(AcceptCharsets) ->
 		end, AcceptCharsets),
 	case lists:keymember(<<"*">>, 1, AcceptCharsets2) of
 		true -> AcceptCharsets2;
-		false -> [{<<"iso-8859-1">>, 1000}|AcceptCharsets2]
+		false ->
+			case lists:keymember(<<"iso-8859-1">>, 1, AcceptCharsets2) of
+				true -> AcceptCharsets2;
+				false -> [{<<"iso-8859-1">>, 1000}|AcceptCharsets2]
+			end
 	end.
 
 choose_charset(Req, State, []) ->
@@ -426,7 +442,7 @@ choose_charset(Req, State=#state{charsets_p=CP}, [Charset|Tail]) ->
 
 match_charset(Req, State, Accept, [], _Charset) ->
 	choose_charset(Req, State, Accept);
-match_charset(Req, State, _Accept, [{Provided, _}|_], {Provided, _}) ->
+match_charset(Req, State, _Accept, [Provided|_], {Provided, _}) ->
 	set_content_type(Req, State#state{charset_a=Provided});
 match_charset(Req, State, Accept, [_|Tail], Charset) ->
 	match_charset(Req, State, Accept, Tail, Charset).
@@ -496,14 +512,7 @@ variances(Req, State=#state{content_types_p=CTP,
 					resource_exists(Req3, State2)
 			end
 	catch Class:Reason ->
-		error_logger:error_msg(
-			"** Cowboy handler ~p terminating in ~p/~p~n"
-			"   for the reason ~p:~p~n** Handler state was ~p~n"
-			"** Request was ~p~n** Stacktrace: ~p~n~n",
-			[State#state.handler, variances, 2,
-				Class, Reason, State#state.handler_state,
-				cowboy_req:to_list(Req), erlang:get_stacktrace()]),
-		error_terminate(Req, State)
+		error_terminate(Req, State, Class, Reason, variances)
 	end.
 
 variances(Req, State, Variances) ->
@@ -539,14 +548,7 @@ if_match(Req, State, EtagsList) ->
 				false -> precondition_failed(Req2, State2)
 			end
 	catch Class:Reason ->
-		error_logger:error_msg(
-			"** Cowboy handler ~p terminating in ~p/~p~n"
-			"   for the reason ~p:~p~n** Handler state was ~p~n"
-			"** Request was ~p~n** Stacktrace: ~p~n~n",
-			[State#state.handler, generate_etag, 2,
-				Class, Reason, State#state.handler_state,
-				cowboy_req:to_list(Req), erlang:get_stacktrace()]),
-		error_terminate(Req, State)
+		error_terminate(Req, State, Class, Reason, generate_etag)
 	end.
 
 if_match_must_not_exist(Req, State) ->
@@ -574,14 +576,7 @@ if_unmodified_since(Req, State, IfUnmodifiedSince) ->
 				false -> if_none_match_exists(Req2, State2)
 			end
 	catch Class:Reason ->
-		error_logger:error_msg(
-			"** Cowboy handler ~p terminating in ~p/~p~n"
-			"   for the reason ~p:~p~n** Handler state was ~p~n"
-			"** Request was ~p~n** Stacktrace: ~p~n~n",
-			[State#state.handler, last_modified, 2,
-				Class, Reason, State#state.handler_state,
-				cowboy_req:to_list(Req), erlang:get_stacktrace()]),
-		error_terminate(Req, State)
+		error_terminate(Req, State, Class, Reason, last_modified)
 	end.
 
 if_none_match_exists(Req, State) ->
@@ -607,14 +602,7 @@ if_none_match(Req, State, EtagsList) ->
 					end
 			end
 	catch Class:Reason ->
-		error_logger:error_msg(
-			"** Cowboy handler ~p terminating in ~p/~p~n"
-			"   for the reason ~p:~p~n** Handler state was ~p~n"
-			"** Request was ~p~n** Stacktrace: ~p~n~n",
-			[State#state.handler, generate_etag, 2,
-				Class, Reason, State#state.handler_state,
-				cowboy_req:to_list(Req), erlang:get_stacktrace()]),
-		error_terminate(Req, State)
+		error_terminate(Req, State, Class, Reason, generate_etag)
 	end.
 
 precondition_is_head_get(Req, State=#state{method=Method})
@@ -649,14 +637,7 @@ if_modified_since(Req, State, IfModifiedSince) ->
 				false -> not_modified(Req2, State2)
 			end
 	catch Class:Reason ->
-		error_logger:error_msg(
-			"** Cowboy handler ~p terminating in ~p/~p~n"
-			"   for the reason ~p:~p~n** Handler state was ~p~n"
-			"** Request was ~p~n** Stacktrace: ~p~n~n",
-			[State#state.handler, last_modified, 2,
-				Class, Reason, State#state.handler_state,
-				cowboy_req:to_list(Req), erlang:get_stacktrace()]),
-		error_terminate(Req, State)
+		error_terminate(Req, State, Class, Reason, last_modified)
 	end.
 
 not_modified(Req, State) ->
@@ -667,24 +648,10 @@ not_modified(Req, State) ->
 				{Req4, State3} ->
 					respond(Req4, State3, 304)
 			catch Class:Reason ->
-				error_logger:error_msg(
-					"** Cowboy handler ~p terminating in ~p/~p~n"
-					"   for the reason ~p:~p~n** Handler state was ~p~n"
-					"** Request was ~p~n** Stacktrace: ~p~n~n",
-					[State#state.handler, expires, 2,
-						Class, Reason, State#state.handler_state,
-						cowboy_req:to_list(Req), erlang:get_stacktrace()]),
-				error_terminate(Req2, State)
+				error_terminate(Req, State, Class, Reason, expires)
 			end
 	catch Class:Reason ->
-		error_logger:error_msg(
-			"** Cowboy handler ~p terminating in ~p/~p~n"
-			"   for the reason ~p:~p~n** Handler state was ~p~n"
-			"** Request was ~p~n** Stacktrace: ~p~n~n",
-			[State#state.handler, generate_etag, 2,
-				Class, Reason, State#state.handler_state,
-				cowboy_req:to_list(Req), erlang:get_stacktrace()]),
-		error_terminate(Req2, State)
+		error_terminate(Req, State, Class, Reason, generate_etag)
 	end.
 
 precondition_failed(Req, State) ->
@@ -779,7 +746,7 @@ accept_resource(Req, State) ->
 		{halt, Req2, HandlerState} ->
 			terminate(Req2, State#state{handler_state=HandlerState});
 		{CTA, Req2, HandlerState} ->
-		    CTA2 = [normalize_content_types(P) || P <- CTA],
+			CTA2 = [normalize_content_types(P) || P <- CTA],
 			State2 = State#state{handler_state=HandlerState},
 			case cowboy_req:parse_header(<<"content-type">>, Req2) of
 				{ok, ContentType, Req3} ->
@@ -809,17 +776,8 @@ choose_content_type(Req, State, {Type, SubType, Param},
 choose_content_type(Req, State, ContentType, [_Any|Tail]) ->
 	choose_content_type(Req, State, ContentType, Tail).
 
-process_content_type(Req, State=#state{method=Method,
-		handler=Handler, handler_state=HandlerState,
-		exists=Exists}, Fun) ->
-	case call(Req, State, Fun) of
-		no_call ->
-			error_logger:error_msg(
-				"** Cowboy handler ~p terminating; "
-				"function ~p/~p was not exported~n"
-				"** Request was ~p~n** State was ~p~n~n",
-				[Handler, Fun, 2, cowboy_req:to_list(Req), HandlerState]),
-			{error, 500, Req};
+process_content_type(Req, State=#state{method=Method, exists=Exists}, Fun) ->
+	try case call(Req, State, Fun) of
 		{halt, Req2, HandlerState2} ->
 			terminate(Req2, State#state{handler_state=HandlerState2});
 		{true, Req2, HandlerState2} when Exists ->
@@ -831,7 +789,7 @@ process_content_type(Req, State=#state{method=Method,
 		{false, Req2, HandlerState2} ->
 			State2 = State#state{handler_state=HandlerState2},
 			respond(Req2, State2, 422);
-		{ResURL, Req2, HandlerState2} when Method =:= <<"POST">> ->
+		{{true, ResURL}, Req2, HandlerState2} when Method =:= <<"POST">> ->
 			State2 = State#state{handler_state=HandlerState2},
 			Req3 = cowboy_req:set_resp_header(
 				<<"location">>, ResURL, Req2),
@@ -839,6 +797,8 @@ process_content_type(Req, State=#state{method=Method,
 				Exists -> respond(Req3, State2, 303);
 				true -> respond(Req3, State2, 201)
 			end
+	end catch Class:Reason = {case_clause, no_call} ->
+		error_terminate(Req, State, Class, Reason, Fun)
 	end.
 
 %% If the resource is new and has been created at another location
@@ -861,14 +821,7 @@ set_resp_body_etag(Req, State) ->
 		{Req2, State2} ->
 			set_resp_body_last_modified(Req2, State2)
 	catch Class:Reason ->
-		error_logger:error_msg(
-			"** Cowboy handler ~p terminating in ~p/~p~n"
-			"   for the reason ~p:~p~n** Handler state was ~p~n"
-			"** Request was ~p~n** Stacktrace: ~p~n~n",
-			[State#state.handler, generate_etag, 2,
-				Class, Reason, State#state.handler_state,
-				cowboy_req:to_list(Req), erlang:get_stacktrace()]),
-		error_terminate(Req, State)
+		error_terminate(Req, State, Class, Reason, generate_etag)
 	end.
 
 %% Set the Last-Modified header if any for the response provided.
@@ -885,14 +838,7 @@ set_resp_body_last_modified(Req, State) ->
 					set_resp_body_expires(Req3, State2)
 			end
 	catch Class:Reason ->
-		error_logger:error_msg(
-			"** Cowboy handler ~p terminating in ~p/~p~n"
-			"   for the reason ~p:~p~n** Handler state was ~p~n"
-			"** Request was ~p~n** Stacktrace: ~p~n~n",
-			[State#state.handler, last_modified, 2,
-				Class, Reason, State#state.handler_state,
-				cowboy_req:to_list(Req), erlang:get_stacktrace()]),
-		error_terminate(Req, State)
+		error_terminate(Req, State, Class, Reason, last_modified)
 	end.
 
 %% Set the Expires header if any for the response provided.
@@ -901,29 +847,14 @@ set_resp_body_expires(Req, State) ->
 		{Req2, State2} ->
 			set_resp_body(Req2, State2)
 	catch Class:Reason ->
-		error_logger:error_msg(
-			"** Cowboy handler ~p terminating in ~p/~p~n"
-			"   for the reason ~p:~p~n** Handler state was ~p~n"
-			"** Request was ~p~n** Stacktrace: ~p~n~n",
-			[State#state.handler, expires, 2,
-				Class, Reason, State#state.handler_state,
-				cowboy_req:to_list(Req), erlang:get_stacktrace()]),
-		error_terminate(Req, State)
+		error_terminate(Req, State, Class, Reason, expires)
 	end.
 
 %% Set the response headers and call the callback found using
 %% content_types_provided/2 to obtain the request body and add
 %% it to the response.
-set_resp_body(Req, State=#state{handler=Handler, handler_state=HandlerState,
-		content_type_a={_Type, Callback}}) ->
-	case call(Req, State, Callback) of
-		no_call ->
-			error_logger:error_msg(
-				"** Cowboy handler ~p terminating; "
-				"function ~p/~p was not exported~n"
-				"** Request was ~p~n** State was ~p~n~n",
-				[Handler, Callback, 2, cowboy_req:to_list(Req), HandlerState]),
-			{error, 500, Req};
+set_resp_body(Req, State=#state{content_type_a={_, Callback}}) ->
+	try case call(Req, State, Callback) of
 		{halt, Req2, HandlerState2} ->
 			terminate(Req2, State#state{handler_state=HandlerState2});
 		{Body, Req2, HandlerState2} ->
@@ -933,10 +864,14 @@ set_resp_body(Req, State=#state{handler=Handler, handler_state=HandlerState,
 					cowboy_req:set_resp_body_fun(StreamFun, Req2);
 				{stream, Len, StreamFun} ->
 					cowboy_req:set_resp_body_fun(Len, StreamFun, Req2);
+				{chunked, StreamFun} ->
+					cowboy_req:set_resp_body_fun(chunked, StreamFun, Req2);
 				_Contents ->
 					cowboy_req:set_resp_body(Body, Req2)
 			end,
 			multiple_choices(Req3, State2)
+	end catch Class:Reason = {case_clause, no_call} ->
+		error_terminate(Req, State, Class, Reason, Callback)
 	end.
 
 multiple_choices(Req, State) ->
@@ -1035,13 +970,7 @@ call(Req, State=#state{handler=Handler, handler_state=HandlerState},
 			try
 				Handler:Callback(Req, HandlerState)
 			catch Class:Reason ->
-				error_logger:error_msg(
-					"** Cowboy handler ~p terminating in ~p/~p~n"
-					"   for the reason ~p:~p~n** Handler state was ~p~n"
-					"** Request was ~p~n** Stacktrace: ~p~n~n",
-					[Handler, Callback, 2, Class, Reason, HandlerState,
-						cowboy_req:to_list(Req), erlang:get_stacktrace()]),
-				error_terminate(Req, State)
+				error_terminate(Req, State, Class, Reason, Callback)
 			end;
 		false ->
 			no_call
@@ -1067,10 +996,17 @@ terminate(Req, State=#state{env=Env}) ->
 	rest_terminate(Req, State),
 	{ok, Req, [{result, ok}|Env]}.
 
--spec error_terminate(cowboy_req:req(), #state{}) -> no_return().
-error_terminate(Req, State) ->
+error_terminate(Req, State=#state{handler=Handler, handler_state=HandlerState},
+		Class, Reason, Callback) ->
 	rest_terminate(Req, State),
-	erlang:throw({?MODULE, error}).
+	cowboy_req:maybe_reply(500, Req),
+	erlang:Class([
+		{reason, Reason},
+		{mfa, {Handler, Callback, 2}},
+		{stacktrace, erlang:get_stacktrace()},
+		{req, cowboy_req:to_list(Req)},
+		{state, HandlerState}
+	]).
 
 rest_terminate(Req, #state{handler=Handler, handler_state=HandlerState}) ->
 	case erlang:function_exported(Handler, rest_terminate, 2) of

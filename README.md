@@ -18,12 +18,18 @@ Because it uses Ranch for managing connections, Cowboy can easily be
 
 No parameterized module. No process dictionary. **Clean** Erlang code.
 
+Sponsors
+--------
+
+The SPDY protocol development is sponsored
+by [LeoFS Cloud Storage](http://www.leofs.org).
+
 Getting Started
 ---------------
 
- *  [Read the guide](http://ninenines.eu/docs/en/cowboy/HEAD/guide/introduction)
+ *  [Read the guide](http://ninenines.eu/docs/en/cowboy/HEAD/guide)
+ *  [Check the manual](http://ninenines.eu/docs/en/cowboy/HEAD/manual)
  *  Look at the examples in the `examples/` directory
- *  Build API documentation with `make docs`; open `doc/index.html`
 
 Support
 -------
