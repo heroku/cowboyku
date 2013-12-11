@@ -617,14 +617,6 @@ stream_body(Req) ->
 stream_body(MaxLength, Req=#http_req{body_state=waiting, version=Version,
 		transport=Transport, socket=Socket}) ->
 	{ok, ExpectHeader, Req1} = parse_header(<<"expect">>, Req),
-	case ExpectHeader of
-		[<<"100-continue">>] ->
-			HTTPVer = atom_to_binary(Version, latin1),
-			Transport:send(Socket,
-				<< HTTPVer/binary, " ", (status(100))/binary, "\r\n\r\n" >>);
-		undefined ->
-			ok
-	end,
 	case parse_header(<<"transfer-encoding">>, Req1) of
 		{ok, [<<"chunked">>], Req2} ->
 			stream_body(MaxLength, Req2#http_req{body_state=
