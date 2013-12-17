@@ -77,6 +77,7 @@
 -export([init_stream/4]).
 -export([stream_body/1]).
 -export([stream_body/2]).
+-export([buffer_data/3]).
 -export([skip_body/1]).
 -export([body/1]).
 -export([body/2]).
@@ -654,6 +655,19 @@ stream_body_recv(MaxLength, Req=#http_req{
 			Req#http_req{buffer= <<>>});
 		{error, Reason} -> {error, Reason}
 	end.
+
+%% Takes the body data from the Transport and stores it in Cowboy's internal
+%% buffer, returning the amount of buffered data.
+-spec buffer_data(non_neg_integer(), timeout(), Req) -> Req when Req::req().
+buffer_data(Length, Timeout, Req = #http_req{buffer= <<>>, transport=Transport,
+                                             socket=Socket}) ->
+    case Transport:recv(Socket, Length, Timeout) of
+        {ok, Data} -> {ok, Req#http_req{buffer=Data}};
+        {error, Reason} -> {error, Reason}
+    end;
+buffer_data(_, _, Req) -> % data in the buffer already
+    {ok, Req}.
+
 
 -spec transfer_decode(binary(), Req)
 	-> {ok, binary(), Req} | {error, atom()} when Req::req().
