@@ -659,14 +659,31 @@ stream_body_recv(MaxLength, Req=#http_req{
 %% Takes the body data from the Transport and stores it in Cowboy's internal
 %% buffer, returning the amount of buffered data.
 -spec buffer_data(non_neg_integer(), timeout(), Req) -> Req when Req::req().
-buffer_data(Length, Timeout, Req = #http_req{buffer= <<>>, transport=Transport,
-                                             socket=Socket}) ->
-    case Transport:recv(Socket, Length, Timeout) of
-        {ok, Data} -> {ok, Req#http_req{buffer=Data}};
-        {error, Reason} -> {error, Reason}
+%% A length of 0 means we want any amount of data buffered, including what
+%% is already there
+buffer_data(0, Timeout, Req=#http_req{socket=Socket, transport=Transport,
+                                      buffer= <<>>}) ->
+    case Transport:recv(Socket, 0, Timeout) of
+        {ok, Data} ->
+            {ok, Req#http_req{buffer=Data}};
+        {error, Reason} ->
+            {error, Reason}
     end;
-buffer_data(_, _, Req) -> % data in the buffer already
-    {ok, Req}.
+buffer_data(0, _Timeout, Req) -> % data is in the buffer
+    {ok, Req};
+buffer_data(Length, Timeout, Req=#http_req{socket=Socket, transport=Transport,
+                                           buffer=Buffer}) ->
+    case Length - iolist_size(Buffer) of
+        N when N > 0 ->
+            case Transport:recv(Socket, N, Timeout) of
+                {ok, Data} ->
+                    {ok, Req#http_req{buffer= <<Buffer/binary, Data/binary>>}};
+                {error, Reason} ->
+                    {error, Reason}
+            end;
+        _ ->
+            {ok, Req}
+    end.
 
 
 -spec transfer_decode(binary(), Req)
