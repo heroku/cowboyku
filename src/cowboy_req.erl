@@ -658,7 +658,9 @@ stream_body_recv(MaxLength, Req=#http_req{
 
 %% Takes the body data from the Transport and stores it in Cowboy's internal
 %% buffer, returning the amount of buffered data.
--spec buffer_data(non_neg_integer(), timeout(), Req) -> Req when Req::req().
+-spec buffer_data(non_neg_integer(), timeout(), req()) ->
+	{error, Reason::term()} |
+	{ok, Req::req()}.
 %% A length of 0 means we want any amount of data buffered, including what
 %% is already there
 buffer_data(0, Timeout, Req=#http_req{socket=Socket, transport=Transport,
