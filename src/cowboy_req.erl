@@ -1345,8 +1345,7 @@ response(Status, Headers, RespHeaders, DefaultHeaders, Body, Req=#http_req{
 			ReqPid ! {?MODULE, resp_sent},
 			normal;
 		RespState when RespState =:= waiting; RespState =:= waiting_stream ->
-			HTTPVer = atom_to_binary(Version, latin1),
-			StatusLine = << HTTPVer/binary, " ",
+			StatusLine = << "HTTP/1.1", " ",
 				(status(Status))/binary, "\r\n" >>,
 			HeaderLines = [[Key, <<": ">>, Value, <<"\r\n">>]
 				|| {Key, Value} <- FullHeaders],
