@@ -653,7 +653,7 @@ stream_body_recv(MaxLength, Req=#http_req{
 		transport=Transport, socket=Socket, buffer=Buffer,
 		body_state={stream, Length, _, _, _}}) ->
 	%% @todo Allow configuring the timeout.
-	case Transport:recv(Socket, min(Length, MaxLength), 5000) of
+	case Transport:recv(Socket, min(Length, MaxLength), 55000) of
 		{ok, Data} -> transfer_decode(<< Buffer/binary, Data/binary >>,
 			Req#http_req{buffer= <<>>});
 		{error, Reason} -> {error, Reason}
