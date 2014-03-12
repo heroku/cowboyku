@@ -1322,7 +1322,7 @@ chunked_response(Status, Headers, Req=#http_req{
 	cowboy:http_headers(), cowboy:http_headers(), stream | iodata(), Req)
 	-> {normal | hook, Req} when Req::req().
 response(Status, Headers, RespHeaders, DefaultHeaders, Body, Req=#http_req{
-		socket=Socket, transport=Transport, version=Version,
+		socket=Socket, transport=Transport,
 		pid=ReqPid, onresponse=OnResponse}) ->
 	FullHeaders = case OnResponse of
 		already_called -> Headers;
