@@ -564,14 +564,18 @@ has_body(Req) ->
 %%
 %% The length may not be known if Transfer-Encoding is not identity,
 %% and the body hasn't been read at the time of the call.
--spec body_length(Req) -> {undefined | non_neg_integer(), Req} when Req::req().
+-spec body_length(Req)
+	-> {undefined | non_neg_integer(), Req}
+	| {error, badarg} when Req::req().
 body_length(Req) ->
 	case parse_header(<<"transfer-encoding">>, Req) of
 		{ok, [<<"identity">>], Req2} ->
 			{ok, Length, Req3} = parse_header(<<"content-length">>, Req2, 0),
 			{Length, Req3};
 		{ok, _, Req2} ->
-			{undefined, Req2}
+			{undefined, Req2};
+		{error, badarg} ->
+			{error ,badarg}
 	end.
 
 %% @doc Initialize body streaming and set custom decoding functions.
