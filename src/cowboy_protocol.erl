@@ -336,7 +336,8 @@ parse_hd_name_ws(<< C, Rest/bits >>, S, M, P, Q, V, H, Name) ->
 	case C of
 		$\s -> parse_hd_name_ws(Rest, S, M, P, Q, V, H, Name);
 		$\t -> parse_hd_name_ws(Rest, S, M, P, Q, V, H, Name);
-		$: -> parse_hd_before_value(Rest, S, M, P, Q, V, H, Name)
+		$: -> parse_hd_before_value(Rest, S, M, P, Q, V, H, Name);
+		_ -> error_terminate(400, S)
 	end.
 
 wait_hd_before_value(Buffer, State=#state{
