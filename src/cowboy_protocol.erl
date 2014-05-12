@@ -420,7 +420,6 @@ parse_hd_value(<<>>, S, M, P, Q, V, H, N, SoFar) ->
 parse_hd_value(_, State, _M, _P, _Q, _V, _H, _N, _SoFar) ->
         error_terminate(400, State).
 
-
 request(B, State=#state{transport=Transport}, M, P, Q, Version, Headers) ->
 	case lists:keyfind(<<"host">>, 1, Headers) of
 		false when Version =:= 'HTTP/1.1' ->
