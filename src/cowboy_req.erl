@@ -570,8 +570,12 @@ has_body(Req) ->
 body_length(Req) ->
 	case parse_header(<<"transfer-encoding">>, Req) of
 		{ok, [<<"identity">>], Req2} ->
-			{ok, Length, Req3} = parse_header(<<"content-length">>, Req2, 0),
-			{Length, Req3};
+                        case parse_header(<<"content-length">>, Req2, 0) of
+                                {ok, Length, Req3} ->
+                                        {Length, Req3};
+                                {error, badarg} ->
+                                        {error, badarg}
+                        end;
 		{ok, _, Req2} ->
 			{undefined, Req2};
 		{error, badarg} ->
