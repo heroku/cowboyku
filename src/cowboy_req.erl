@@ -1385,9 +1385,10 @@ response_connection([{Name, Value}|Tail], Connection) ->
 	cowboy:http_headers()) -> cowboy:http_headers().
 response_merge_headers(Headers, RespHeaders, DefaultHeaders) ->
 	Headers2 = [{Key, Value} || {Key, Value} <- Headers],
-	merge_headers(
+	Merged = merge_headers(
 		merge_headers(Headers2, RespHeaders),
-		DefaultHeaders).
+		DefaultHeaders),
+    [{cowboy_bstr:capitalize_token(Key), Value} || {Key, Value} <- Merged].
 
 -spec merge_headers(cowboy:http_headers(), cowboy:http_headers())
 	-> cowboy:http_headers().
