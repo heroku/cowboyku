@@ -904,10 +904,6 @@ set_resp_body(Body, Req) ->
 %% Setting a response stream function without a length means that the
 %% body will be sent until the connection is closed. Cowboy will make
 %% sure that the connection is closed with no extra step required.
-%%
-%% To inform the client that a body has been sent with this request,
-%% Cowboy will add a "Transfer-Encoding: identity" header to the
-%% response.
 -spec set_resp_body_fun(resp_body_fun(), Req) -> Req when Req::req().
 set_resp_body_fun(StreamFun, Req) when is_function(StreamFun) ->
 	Req#http_req{resp_body=StreamFun}.
@@ -998,8 +994,7 @@ reply(Status, Headers, Body, Req=#http_req{
 					response(Status, Headers, RespHeaders, [
 						{<<"connection">>, <<"close">>},
 						{<<"date">>, cowboy_clock:rfc1123()},
-						{<<"server">>, <<"Cowboy">>},
-						{<<"transfer-encoding">>, <<"identity">>}
+						{<<"server">>, <<"Cowboy">>}
 					], <<>>, Req)
 			end,
 			if	RespType =/= hook, Method =/= <<"HEAD">> ->
