@@ -210,52 +210,50 @@ parse_method(<< C, Rest/bits >>, State, SoFar) ->
 parse_uri(<< $\r, _/bits >>, State, _) ->
 	error_terminate(400, State);
 parse_uri(<< "* ", Rest/bits >>, State, Method) ->
-	parse_version(Rest, State, Method, <<>>, <<"*">>, <<>>);
+	parse_version(Rest, State, Method, <<"*">>, <<>>);
 parse_uri(<< "http://", Rest/bits >>, State, Method) ->
-	parse_uri_host(Rest, State, Method, <<>>);
+	parse_uri_skip_host(Rest, State, Method);
 parse_uri(<< "https://", Rest/bits >>, State, Method) ->
-	parse_uri_host(Rest, State, Method, <<>>);
+	parse_uri_skip_host(Rest, State, Method);
 parse_uri(Buffer, State, Method) ->
-	parse_uri_path(Buffer, State, Method, <<>>, <<>>).
+	parse_uri_path(Buffer, State, Method, <<>>).
 
-parse_uri_host(<< C, Rest/bits >>, State, Method, SoFar) ->
+parse_uri_skip_host(<< C, Rest/bits >>, State, Method) ->
 	case C of
 		$\r -> error_terminate(400, State);
-		$/ -> parse_uri_path(Rest, State, Method, SoFar, <<"/">>);
-		_ -> parse_uri_host(Rest, State, Method, <<SoFar/binary, C>>)
+		$/ -> parse_uri_path(Rest, State, Method, <<"/">>);
+		_ -> parse_uri_skip_host(Rest, State, Method)
 	end.
 
-parse_uri_path(<< C, Rest/bits >>, State, Method, Host, SoFar) ->
+parse_uri_path(<< C, Rest/bits >>, State, Method, SoFar) ->
 	case C of
 		$\r -> error_terminate(400, State);
-		$\s -> parse_version(Rest, State, Method, Host, SoFar, <<>>);
-		$? -> parse_uri_query(Rest, State, Method, Host, SoFar, <<>>);
-		$# -> skip_uri_fragment(Rest, State, Method, Host, SoFar, <<>>);
-		_ -> parse_uri_path(Rest, State, Method, Host, << SoFar/binary, C >>)
+		$\s -> parse_version(Rest, State, Method, SoFar, <<>>);
+		$? -> parse_uri_query(Rest, State, Method, SoFar, <<>>);
+		$# -> skip_uri_fragment(Rest, State, Method, SoFar, <<>>);
+		_ -> parse_uri_path(Rest, State, Method, << SoFar/binary, C >>)
 	end.
 
-parse_uri_query(<< C, Rest/bits >>, S, M, H, P, SoFar) ->
+parse_uri_query(<< C, Rest/bits >>, S, M, P, SoFar) ->
 	case C of
 		$\r -> error_terminate(400, S);
-		$\s -> parse_version(Rest, S, M, H, P, SoFar);
-		$# -> skip_uri_fragment(Rest, S, M, H, P, SoFar);
-		_ -> parse_uri_query(Rest, S, M, H, P, << SoFar/binary, C >>)
+		$\s -> parse_version(Rest, S, M, P, SoFar);
+		$# -> skip_uri_fragment(Rest, S, M, P, SoFar);
+		_ -> parse_uri_query(Rest, S, M, P, << SoFar/binary, C >>)
 	end.
 
-skip_uri_fragment(<< C, Rest/bits >>, S, M, H, P, Q) ->
+skip_uri_fragment(<< C, Rest/bits >>, S, M, P, Q) ->
 	case C of
 		$\r -> error_terminate(400, S);
-		$\s -> parse_version(Rest, S, M, H, P, Q);
-		_ -> skip_uri_fragment(Rest, S, M, H, P, Q)
+		$\s -> parse_version(Rest, S, M, P, Q);
+		_ -> skip_uri_fragment(Rest, S, M, P, Q)
 	end.
 
-parse_version(<< "HTTP/1.1\r\n", Rest/bits >>, S, M, _, P, Q) ->
+parse_version(<< "HTTP/1.1\r\n", Rest/bits >>, S, M, P, Q) ->
 	parse_header(Rest, S, M, P, Q, 'HTTP/1.1', []);
-parse_version(<< "HTTP/1.0\r\n", Rest/bits >>, S, M, <<>>, P, Q) ->
+parse_version(<< "HTTP/1.0\r\n", Rest/bits >>, S, M, P, Q) ->
 	parse_header(Rest, S, M, P, Q, 'HTTP/1.0', []);
-parse_version(<< "HTTP/1.0\r\n", Rest/bits >>, S, M, H, P, Q) ->
-	parse_header(Rest, S, M, P, Q, 'HTTP/1.0', [{<<"host">>, H}]);
-parse_version(_, State, _, _, _, _) ->
+parse_version(_, State, _, _, _) ->
 	error_terminate(505, State).
 
 %% Stop receiving data if we have more than allowed number of headers.
