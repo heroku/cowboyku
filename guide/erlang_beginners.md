@@ -5,9 +5,13 @@ Chances are you are interested in using Cowboy, but have
 no idea how to write an Erlang program. Fear not! This
 chapter will help you get started.
 
-We recommend two books for beginners. You should read them
-both at some point, as they cover Erlang from two entirely
-different perspectives.
+Do note that this is however a repository for `Cowboyku`, a
+Heroku fork of Cowboy for our specific routing and proxying
+needs.
+
+Nevertheless, we recommend two books for beginners. You
+should read them both at some point, as they cover Erlang
+from two entirely different perspectives.
 
 Learn You Some Erlang for Great Good!
 -------------------------------------

@@ -16,11 +16,11 @@ single place, for example.
 Protocol upgrades
 -----------------
 
-Cowboy features many different handlers: HTTP handlers, loop handlers,
+Cowboyku features many different handlers: HTTP handlers, loop handlers,
 websocket handlers, REST handlers and static handlers. All of them
 have a common entry point: the `init/3` function.
 
-By default, Cowboy considers your handler to be an HTTP handler.
+By default, Cowboyku considers your handler to be an HTTP handler.
 
 To switch to a different protocol, like, for example, Websocket,
 you must perform a protocol upgrade. This is done by returning
@@ -33,15 +33,15 @@ init(_Any, _Req, _Opts) ->
     {upgrade, protocol, my_protocol}.
 ```
 
-Cowboy comes with two protocol upgrades: `cowboy_rest` and
-`cowboy_websocket`. Use these values in place of `my_protocol`
+Cowboyku comes with two protocol upgrades: `cowboyku_rest` and
+`cowboyku_websocket`. Use these values in place of `my_protocol`
 to use them.
 
 Custom protocol upgrades
 ------------------------
 
 The `my_protocol` module above will be used for further processing
-of the request. It should use the `cowboy_sub_protocol` behaviour,
+of the request. It should use the `cowboyku_sub_protocol` behaviour,
 which requires only one callback, `upgrade/4`.
 
 It receives the request object, the middleware environment, and

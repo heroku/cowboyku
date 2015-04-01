@@ -3,7 +3,7 @@ The life of a request
 
 This chapter explains the different steps a request
 goes through until a response is sent, along with
-details of the Cowboy implementation.
+details of the Cowboyku implementation.
 
 Request/response
 ----------------
@@ -18,14 +18,14 @@ request, find the resource, prepare the response being
 sent and often other related operations the user can
 add like writing logs.
 
-Requests take the following route in Cowboy:
+Requests take the following route in Cowboyku:
 
 ![HTTP request/response flowchart](http_req_resp.png)
 
 This shows the default middlewares, but they may be
 configured differently in your setup. The dark green
 indicates the points where you can hook your own code,
-the light green is the Cowboy code that you can of
+the light green is the Cowboyku code that you can of
 course configure as needed.
 
 The `acceptor` is the part of the server that accepts
@@ -35,7 +35,7 @@ and handling requests as they come until the socket
 is closed.
 
 A response may be sent at many different points in the
-life of the request. If Cowboy can't parse the request,
+life of the request. If Cowboyku can't parse the request,
 it gives up with an error response. If the router can't
 find the resource, it sends a not found error. Your
 own code can of course send a response at any time.
@@ -50,7 +50,7 @@ And then?
 Behavior depends on what protocol is in use.
 
 HTTP/1.0 can only process one request per connection,
-so Cowboy will close the connection immediately after
+so Cowboyku will close the connection immediately after
 it sends the response.
 
 HTTP/1.1 allows the client to request that the server
@@ -74,36 +74,36 @@ a header indicating whether it would like to leave the
 socket open. The server may or may not accept, indicating
 its choice by sending the same header in the response.
 
-Cowboy will include this header automatically in all
+Cowboyku will include this header automatically in all
 responses to HTTP/1.1 requests. You can however force
-the closing of the socket if you want. When Cowboy sees
+the closing of the socket if you want. When Cowboyku sees
 you want to send a `connection: close` header, it will
 not override it and will close the connection as soon
 as the reply is sent.
 
-This snippet will force Cowboy to close the connection.
+This snippet will force Cowboyku to close the connection.
 
 ``` erlang
-{ok, Req2} = cowboy_req:reply(200, [
+{ok, Req2} = cowboyku_req:reply(200, [
     {<<"connection">>, <<"close">>},
 ], <<"Closing the socket in 3.. 2.. 1..">>, Req).
 ```
 
-Cowboy will only accept a certain number of new requests
+Cowboyku will only accept a certain number of new requests
 on the same connection. By default it will run up to 100
 requests. This number can be changed by setting the
 `max_keepalive` configuration value when starting an
 HTTP listener.
 
 ``` erlang
-cowboy:start_http(my_http_listener, 100, [{port, 8080}], [
+cowboyku:start_http(my_http_listener, 100, [{port, 8080}], [
         {env, [{dispatch, Dispatch}]},
         {max_keepalive, 5}
 ]).
 ```
 
-Cowboy implements the keep-alive mechanism by reusing
-the same process for all requests. This allows Cowboy
+Cowboyku implements the keep-alive mechanism by reusing
+the same process for all requests. This allows Cowboyku
 to save memory. This works well because most code will
 not have any side effect impacting subsequent requests.
 But it also means you need to clean up if you do have
@@ -141,7 +141,7 @@ body of another request. The same is true with responses.
 Responses may also be sent in a different order.
 
 Because requests and responses are fully asynchronous,
-Cowboy creates a new process for each request, and these
+Cowboyku creates a new process for each request, and these
 processes are managed by another process that handles the
 connection itself.
 
@@ -149,5 +149,5 @@ SPDY servers may also decide to send resources to the
 client before the client requests them. This is especially
 useful for sending static files associated with the HTML
 page requested, as this reduces the latency of the overall
-response. Cowboy does not support this particular mechanism
+response. Cowboyku does not support this particular mechanism
 at this point, however.

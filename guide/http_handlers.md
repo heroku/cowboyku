@@ -3,7 +3,7 @@ Handling plain HTTP requests
 
 The simplest way to handle a request is by writing a
 plain HTTP handler. It is modeled after Erlang/OTP's
-gen_server behaviour, although simplified, as Cowboy
+gen_server behaviour, although simplified, as Cowboyku
 will simply call the three callbacks sequentially.
 
 Initialization
@@ -63,7 +63,7 @@ continue with the handler code, so we use the
 init(_Type, Req, Opts) ->
     case lists:keyfind(lang, 1, Opts) of
         false ->
-            {ok, Req2} = cowboy_req:reply(500, [
+            {ok, Req2} = cowboyku_req:reply(500, [
                 {<<"content-type">>, <<"text/plain">>}
             ], "Missing option 'lang'.", Req),
             {shutdown, Req2, no_state};
@@ -113,7 +113,7 @@ The following handle function will send a fairly original response.
 
 ``` erlang
 handle(Req, State) ->
-    {ok, Req2} = cowboy_req:reply(200, [
+    {ok, Req2} = cowboyku_req:reply(200, [
         {<<"content-type">>, <<"text/plain">>}
     ], <<"Hello World!">>, Req),
     {ok, Req2, State}.
@@ -136,7 +136,7 @@ other return value.
 
 If you used the process dictionary, timers, monitors or may
 be receiving messages, then you can use this function to clean
-them up, as Cowboy might reuse the process for the next
+them up, as Cowboyku might reuse the process for the next
 keep-alive request.
 
 The chances of any of this happening in your handler are pretty

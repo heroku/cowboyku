@@ -5,7 +5,7 @@ Let's take a look at various technologies from the beginnings
 of the Web up to this day, and get a preview of what's
 coming next.
 
-Cowboy is compatible with all the technology cited in this
+Cowboyku is compatible with all the technology cited in this
 chapter except of course HTTP/2.0 which has no implementation
 in the wild at the time of writing.
 

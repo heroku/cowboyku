@@ -1,13 +1,13 @@
 %% Feel free to use, reuse and abuse the code in this file.
 
 -module(autobahn_echo).
--behaviour(cowboy_websocket_handler).
+-behaviour(cowboyku_websocket_handler).
 -export([init/3]).
 -export([websocket_init/3, websocket_handle/3,
 	websocket_info/3, websocket_terminate/3]).
 
 init(_Any, _Req, _Opts) ->
-	{upgrade, protocol, cowboy_websocket}.
+	{upgrade, protocol, cowboyku_websocket}.
 
 websocket_init(_TransportName, Req, _Opts) ->
 	{ok, Req, undefined}.

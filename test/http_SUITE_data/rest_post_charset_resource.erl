@@ -2,7 +2,7 @@
 -export([init/3, allowed_methods/2, content_types_accepted/2, from_text/2]).
 
 init(_Transport, _Req, _Opts) ->
-	{upgrade, protocol, cowboy_rest}.
+	{upgrade, protocol, cowboyku_rest}.
 
 allowed_methods(Req, State) ->
 	{[<<"POST">>], Req, State}.

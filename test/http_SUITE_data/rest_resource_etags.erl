@@ -2,10 +2,10 @@
 -export([init/3, generate_etag/2, content_types_provided/2, get_text_plain/2]).
 
 init(_Transport, _Req, _Opts) ->
-	{upgrade, protocol, cowboy_rest}.
+	{upgrade, protocol, cowboyku_rest}.
 
 generate_etag(Req, State) ->
-	case cowboy_req:qs_val(<<"type">>, Req) of
+	case cowboyku_req:qs_val(<<"type">>, Req) of
 		%% Correct return values from generate_etag/2.
 		{<<"tuple-weak">>, Req2} ->
 			{{weak, <<"etag-header-value">>}, Req2, State};

@@ -72,18 +72,18 @@ init_per_suite(Config) ->
 	application:start(crypto),
 	application:start(cowlib),
 	application:start(ranch),
-	application:start(cowboy),
+	application:start(cowboyku),
 	Config.
 
 end_per_suite(_Config) ->
-	application:stop(cowboy),
+	application:stop(cowboyku),
 	application:stop(ranch),
 	application:stop(cowlib),
 	application:stop(crypto),
 	ok.
 
 init_per_group(ws, Config) ->
-	cowboy:start_http(ws, 100, [{port, 0}], [
+	cowboyku:start_http(ws, 100, [{port, 0}], [
 		{env, [{dispatch, init_dispatch()}]},
 		{compress, true}
 	]),
@@ -91,13 +91,13 @@ init_per_group(ws, Config) ->
 	[{port, Port}|Config].
 
 end_per_group(Listener, _Config) ->
-	cowboy:stop_listener(Listener),
+	cowboyku:stop_listener(Listener),
 	ok.
 
 %% Dispatch configuration.
 
 init_dispatch() ->
-	cowboy_router:compile([
+	cowboyku_router:compile([
 		{"localhost", [
 			{"/ws_echo_timer", ws_echo_timer, []},
 			{"/ws_echo", ws_echo, []},

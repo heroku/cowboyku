@@ -23,6 +23,9 @@ Following this document will ensure prompt merging of your work in the
 Reporting bugs
 --------------
 
+First, report all bugs to https://github.com/ninenines/cowboy, the original
+version of this project.
+
 Upon identifying a bug or a DoS vulnerability, you SHOULD submit a ticket,
 regardless of your plans for fixing it. If you plan to fix the bug, you
 SHOULD discuss your plans to avoid having your work rejected.
@@ -112,7 +115,7 @@ $ git checkout $BRANCH
 Source editing
 --------------
 
-The following rules MUST be followed:
+The following rules established in the original Cowboy project MUST be followed:
  *  Indentation uses horizontal tabs (1 tab = 4 columns)
  *  Do NOT align code; only indentation is allowed
  *  Lines MUST NOT span more than 80 columns

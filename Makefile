@@ -1,10 +1,10 @@
 # See LICENSE for licensing information.
 
-PROJECT = cowboy
+PROJECT = cowboyku
 
 # Options.
 
-COMPILE_FIRST = cowboy_middleware cowboy_sub_protocol
+COMPILE_FIRST = cowboyku_middleware cowboyku_sub_protocol
 CT_SUITES = eunit http spdy ws
 PLT_APPS = crypto public_key ssl
 

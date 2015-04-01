@@ -1,7 +1,7 @@
 %% Feel free to use, reuse and abuse the code in this file.
 
 -module(http_handler).
--behaviour(cowboy_http_handler).
+-behaviour(cowboyku_http_handler).
 -export([init/3, handle/2, terminate/3]).
 
 -record(state, {headers, body}).
@@ -12,7 +12,7 @@ init({_Transport, http}, Req, Opts) ->
 	{ok, Req, #state{headers=Headers, body=Body}}.
 
 handle(Req, State=#state{headers=Headers, body=Body}) ->
-	{ok, Req2} = cowboy_req:reply(200, Headers, Body, Req),
+	{ok, Req2} = cowboyku_req:reply(200, Headers, Body, Req),
 	{ok, Req2, State}.
 
 terminate(_, _, _) ->

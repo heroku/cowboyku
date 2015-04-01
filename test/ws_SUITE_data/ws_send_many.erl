@@ -1,7 +1,7 @@
 %% Feel free to use, reuse and abuse the code in this file.
 
 -module(ws_send_many).
--behaviour(cowboy_websocket_handler).
+-behaviour(cowboyku_websocket_handler).
 
 -export([init/3]).
 -export([websocket_init/3]).
@@ -10,10 +10,10 @@
 -export([websocket_terminate/3]).
 
 init(_Any, _Req, _Opts) ->
-	{upgrade, protocol, cowboy_websocket}.
+	{upgrade, protocol, cowboyku_websocket}.
 
 websocket_init(_TransportName, Req, Sequence) ->
-	Req2 = cowboy_req:compact(Req),
+	Req2 = cowboyku_req:compact(Req),
 	erlang:send_after(10, self(), send_many),
 	{ok, Req2, Sequence}.
 

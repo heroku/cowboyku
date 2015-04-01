@@ -45,7 +45,7 @@ init_per_suite(Config) ->
 	application:start(crypto),
 	application:start(cowlib),
 	application:start(ranch),
-	application:start(cowboy),
+	application:start(cowboyku),
 	application:start(asn1),
 	application:start(public_key),
 	application:start(ssl),
@@ -61,7 +61,7 @@ end_per_suite(Config) ->
 	application:stop(ssl),
 	application:stop(public_key),
 	application:stop(asn1),
-	application:stop(cowboy),
+	application:stop(cowboyku),
 	application:stop(ranch),
 	application:stop(cowlib),
 	application:stop(crypto),
@@ -70,22 +70,22 @@ end_per_suite(Config) ->
 init_per_group(Name, Config) ->
 	{_, Cert, Key} = ct_helper:make_certs(),
 	Opts = [{cert, Cert}, {key, Key}],
-	{ok, _} = cowboy:start_spdy(Name, 100, Opts ++ [{port, 0}], [
+	{ok, _} = cowboyku:start_spdy(Name, 100, Opts ++ [{port, 0}], [
 		{env, [{dispatch, init_dispatch(Config)}]}
 	]),
 	Port = ranch:get_port(Name),
 	[{port, Port}|Config].
 
 end_per_group(Name, _) ->
-	cowboy:stop_listener(Name),
+	cowboyku:stop_listener(Name),
 	ok.
 
 %% Dispatch configuration.
 
 init_dispatch(Config) ->
-	cowboy_router:compile([
+	cowboyku_router:compile([
 		{"localhost", [
-			{"/static/[...]", cowboy_static,
+			{"/static/[...]", cowboyku_static,
 				{dir, ?config(static_dir, Config)}},
 			{"/echo/body", http_echo_body, []},
 			{"/chunked", http_chunked, []},

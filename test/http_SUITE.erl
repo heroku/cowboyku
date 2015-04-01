@@ -204,7 +204,7 @@ init_per_suite(Config) ->
 	application:start(crypto),
 	application:start(cowlib),
 	application:start(ranch),
-	application:start(cowboy),
+	application:start(cowboyku),
 	Dir = ?config(priv_dir, Config) ++ "/static",
 	ct_helper:create_static_dir(Dir),
 	[{static_dir, Dir}|Config].
@@ -212,7 +212,7 @@ init_per_suite(Config) ->
 end_per_suite(Config) ->
 	Dir = ?config(static_dir, Config),
 	ct_helper:delete_static_dir(Dir),
-	application:stop(cowboy),
+	application:stop(cowboyku),
 	application:stop(ranch),
 	application:stop(cowlib),
 	application:stop(crypto),
@@ -220,13 +220,13 @@ end_per_suite(Config) ->
 
 init_per_group(http, Config) ->
 	Transport = ranch_tcp,
-	{ok, _} = cowboy:start_http(http, 100, [{port, 0}], [
+	{ok, _} = cowboyku:start_http(http, 100, [{port, 0}], [
 		{env, [{dispatch, init_dispatch(Config)}]},
 		{max_keepalive, 50},
 		{timeout, 500}
 	]),
 	Port = ranch:get_port(http),
-	{ok, Client} = cowboy_client:init([]),
+	{ok, Client} = cowboyku_client:init([]),
 	[{scheme, <<"http">>}, {port, Port}, {opts, []},
 		{transport, Transport}, {client, Client}|Config];
 init_per_group(https, Config) ->
@@ -236,25 +236,25 @@ init_per_group(https, Config) ->
 	application:start(asn1),
 	application:start(public_key),
 	application:start(ssl),
-	{ok, _} = cowboy:start_https(https, 100, Opts ++ [{port, 0}], [
+	{ok, _} = cowboyku:start_https(https, 100, Opts ++ [{port, 0}], [
 		{env, [{dispatch, init_dispatch(Config)}]},
 		{max_keepalive, 50},
 		{timeout, 500}
 	]),
 	Port = ranch:get_port(https),
-	{ok, Client} = cowboy_client:init(Opts),
+	{ok, Client} = cowboyku_client:init(Opts),
 	[{scheme, <<"https">>}, {port, Port}, {opts, Opts},
 		{transport, Transport}, {client, Client}|Config];
 init_per_group(http_compress, Config) ->
 	Transport = ranch_tcp,
-	{ok, _} = cowboy:start_http(http_compress, 100, [{port, 0}], [
+	{ok, _} = cowboyku:start_http(http_compress, 100, [{port, 0}], [
 		{compress, true},
 		{env, [{dispatch, init_dispatch(Config)}]},
 		{max_keepalive, 50},
 		{timeout, 500}
 	]),
 	Port = ranch:get_port(http_compress),
-	{ok, Client} = cowboy_client:init([]),
+	{ok, Client} = cowboyku_client:init([]),
 	[{scheme, <<"http">>}, {port, Port}, {opts, []},
 		{transport, Transport}, {client, Client}|Config];
 init_per_group(https_compress, Config) ->
@@ -264,94 +264,94 @@ init_per_group(https_compress, Config) ->
 	application:start(asn1),
 	application:start(public_key),
 	application:start(ssl),
-	{ok, _} = cowboy:start_https(https_compress, 100, Opts ++ [{port, 0}], [
+	{ok, _} = cowboyku:start_https(https_compress, 100, Opts ++ [{port, 0}], [
 		{compress, true},
 		{env, [{dispatch, init_dispatch(Config)}]},
 		{max_keepalive, 50},
 		{timeout, 500}
 	]),
 	Port = ranch:get_port(https_compress),
-	{ok, Client} = cowboy_client:init(Opts),
+	{ok, Client} = cowboyku_client:init(Opts),
 	[{scheme, <<"https">>}, {port, Port}, {opts, Opts},
 		{transport, Transport}, {client, Client}|Config];
 init_per_group(onrequest, Config) ->
 	Transport = ranch_tcp,
-	{ok, _} = cowboy:start_http(onrequest, 100, [{port, 0}], [
+	{ok, _} = cowboyku:start_http(onrequest, 100, [{port, 0}], [
 		{env, [{dispatch, init_dispatch(Config)}]},
 		{max_keepalive, 50},
 		{onrequest, fun onrequest_hook/1},
 		{timeout, 500}
 	]),
 	Port = ranch:get_port(onrequest),
-	{ok, Client} = cowboy_client:init([]),
+	{ok, Client} = cowboyku_client:init([]),
 	[{scheme, <<"http">>}, {port, Port}, {opts, []},
 		{transport, Transport}, {client, Client}|Config];
 init_per_group(onresponse, Config) ->
 	Transport = ranch_tcp,
-	{ok, _} = cowboy:start_http(onresponse, 100, [{port, 0}], [
+	{ok, _} = cowboyku:start_http(onresponse, 100, [{port, 0}], [
 		{env, [{dispatch, init_dispatch(Config)}]},
 		{max_keepalive, 50},
 		{onresponse, fun onresponse_hook/4},
 		{timeout, 500}
 	]),
 	Port = ranch:get_port(onresponse),
-	{ok, Client} = cowboy_client:init([]),
+	{ok, Client} = cowboyku_client:init([]),
 	[{scheme, <<"http">>}, {port, Port}, {opts, []},
 		{transport, Transport}, {client, Client}|Config];
 init_per_group(onresponse_capitalize, Config) ->
 	Transport = ranch_tcp,
-	{ok, _} = cowboy:start_http(onresponse_capitalize, 100, [{port, 0}], [
+	{ok, _} = cowboyku:start_http(onresponse_capitalize, 100, [{port, 0}], [
 		{env, [{dispatch, init_dispatch(Config)}]},
 		{max_keepalive, 50},
 		{onresponse, fun onresponse_capitalize_hook/4},
 		{timeout, 500}
 	]),
 	Port = ranch:get_port(onresponse_capitalize),
-	{ok, Client} = cowboy_client:init([]),
+	{ok, Client} = cowboyku_client:init([]),
 	[{scheme, <<"http">>}, {port, Port}, {opts, []},
 		{transport, Transport}, {client, Client}|Config];
 init_per_group(parse_host, Config) ->
 	Transport = ranch_tcp,
-	Dispatch = cowboy_router:compile([
+	Dispatch = cowboyku_router:compile([
 		{'_', [
 			{"/req_attr", http_req_attr, []}
 		]}
 	]),
-	{ok, _} = cowboy:start_http(http, 100, [{port, 0}], [
+	{ok, _} = cowboyku:start_http(http, 100, [{port, 0}], [
 		{env, [{dispatch, Dispatch}]},
 		{max_keepalive, 50},
 		{timeout, 500}
 	]),
 	Port = ranch:get_port(http),
-	{ok, Client} = cowboy_client:init([]),
+	{ok, Client} = cowboyku_client:init([]),
 	[{scheme, <<"http">>}, {port, Port}, {opts, []},
 		{transport, Transport}, {client, Client}|Config];
 init_per_group(set_env, Config) ->
 	Transport = ranch_tcp,
-	{ok, _} = cowboy:start_http(set_env, 100, [{port, 0}], [
+	{ok, _} = cowboyku:start_http(set_env, 100, [{port, 0}], [
 		{env, [{dispatch, []}]},
 		{max_keepalive, 50},
 		{timeout, 500}
 	]),
 	Port = ranch:get_port(set_env),
-	{ok, Client} = cowboy_client:init([]),
+	{ok, Client} = cowboyku_client:init([]),
 	[{scheme, <<"http">>}, {port, Port}, {opts, []},
 		{transport, Transport}, {client, Client}|Config].
 
 end_per_group(Name, _) when Name =:= https; Name =:= https_compress ->
-	cowboy:stop_listener(Name),
+	cowboyku:stop_listener(Name),
 	application:stop(ssl),
 	application:stop(public_key),
 	application:stop(asn1),
 	ok;
 end_per_group(Name, _) ->
-	cowboy:stop_listener(Name),
+	cowboyku:stop_listener(Name),
 	ok.
 
 %% Dispatch configuration.
 
 init_dispatch(Config) ->
-	cowboy_router:compile([
+	cowboyku_router:compile([
 		{"localhost", [
 			{"/chunked_response", http_chunked, []},
 			{"/streamed_response", http_streamed, []},
@@ -375,18 +375,18 @@ init_dispatch(Config) ->
 				http_stream_body, [
 					{reply, set_resp_chunked},
 					{body, [<<"stream_body">>, <<"_set_resp_chunked">>]}]},
-			{"/static/[...]", cowboy_static,
+			{"/static/[...]", cowboyku_static,
 				{dir, ?config(static_dir, Config)}},
-			{"/static_mimetypes_function/[...]", cowboy_static,
+			{"/static_mimetypes_function/[...]", cowboyku_static,
 				{dir, ?config(static_dir, Config),
 					[{mimetypes, ?MODULE, mimetypes_text_html}]}},
 			{"/handler_errors", http_errors, []},
-			{"/static_attribute_etag/[...]", cowboy_static,
+			{"/static_attribute_etag/[...]", cowboyku_static,
 				{dir, ?config(static_dir, Config)}},
-			{"/static_function_etag/[...]", cowboy_static,
+			{"/static_function_etag/[...]", cowboyku_static,
 				{dir, ?config(static_dir, Config),
 					[{etag, ?MODULE, etag_gen}]}},
-			{"/static_specify_file/[...]", cowboy_static,
+			{"/static_specify_file/[...]", cowboyku_static,
 				{file, ?config(static_dir, Config) ++ "/style.css"}},
 			{"/multipart", http_multipart, []},
 			{"/echo/body", http_echo_body, []},
@@ -423,10 +423,10 @@ mimetypes_text_html(_) ->
 quick_raw(Data, Config) ->
 	Client = ?config(client, Config),
 	Transport = ?config(transport, Config),
-	{ok, Client2} = cowboy_client:connect(
+	{ok, Client2} = cowboyku_client:connect(
 		Transport, "localhost", ?config(port, Config), Client),
-	{ok, Client3} = cowboy_client:raw_request(Data, Client2),
-	case cowboy_client:response(Client3) of
+	{ok, Client3} = cowboyku_client:raw_request(Data, Client2),
+	case cowboyku_client:response(Client3) of
 		{ok, Status, _, _} -> Status;
 		{error, _} -> closed
 	end.
@@ -440,9 +440,9 @@ build_url(Path, Config) ->
 
 quick_get(URL, Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url(URL, Config), Client),
-	{ok, Status, _, _} = cowboy_client:response(Client2),
+	{ok, Status, _, _} = cowboyku_client:response(Client2),
 	Status.
 
 body_to_chunks(_, <<>>, Acc) ->
@@ -543,14 +543,14 @@ check_status(Config) ->
 
 chunked_response(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/chunked_response", Config), Client),
-	{ok, 200, Headers, Client3} = cowboy_client:response(Client2),
+	{ok, 200, Headers, Client3} = cowboyku_client:response(Client2),
 	true = lists:keymember(<<"transfer-encoding">>, 1, Headers),
-	{ok, Transport, Socket} = cowboy_client:transport(Client3),
+	{ok, Transport, Socket} = cowboyku_client:transport(Client3),
 	{ok, <<"11\r\nchunked_handler\r\n\r\nB\r\nworks fine!\r\n0\r\n\r\n">>}
 		= Transport:recv(Socket, 44, 1000),
-	{error, closed} = cowboy_client:response(Client3).
+	{error, closed} = cowboyku_client:response(Client3).
 
 %% Check if sending requests whose size is around the MTU breaks something.
 echo_body(Config) ->
@@ -558,12 +558,12 @@ echo_body(Config) ->
 	MTU = ct_helper:get_loopback_mtu(),
 	_ = [begin
 		Body = list_to_binary(lists:duplicate(Size, $a)),
-		{ok, Client2} = cowboy_client:request(<<"POST">>,
+		{ok, Client2} = cowboyku_client:request(<<"POST">>,
 			build_url("/echo/body", Config),
 			[{<<"connection">>, <<"close">>}],
 			Body, Client),
-		{ok, 200, _, Client3} = cowboy_client:response(Client2),
-		{ok, Body, _} = cowboy_client:response_body(Client3)
+		{ok, 200, _, Client3} = cowboyku_client:response(Client2),
+		{ok, Body, _} = cowboyku_client:response_body(Client3)
 	end || Size <- lists:seq(MTU - 500, MTU)],
 	ok.
 
@@ -571,22 +571,22 @@ echo_body(Config) ->
 echo_body_max_length(Config) ->
 	Client = ?config(client, Config),
 	Body = <<$a:8000008>>,
-	{ok, Client2} = cowboy_client:request(<<"POST">>,
+	{ok, Client2} = cowboyku_client:request(<<"POST">>,
 		build_url("/echo/body", Config),
 		[{<<"connection">>, <<"close">>}],
 		Body, Client),
-	{ok, 413, _, _} = cowboy_client:response(Client2).
+	{ok, 413, _, _} = cowboyku_client:response(Client2).
 
 % check if body_qs echo's back results
 echo_body_qs(Config) ->
 	Client = ?config(client, Config),
 	Body = <<"echo=67890">>,
-	{ok, Client2} = cowboy_client:request(<<"POST">>,
+	{ok, Client2} = cowboyku_client:request(<<"POST">>,
 		build_url("/echo/body_qs", Config),
 		[{<<"connection">>, <<"close">>}],
 		Body, Client),
-	{ok, 200, _, Client3} = cowboy_client:response(Client2),
-	{ok, <<"67890">>, _} = cowboy_client:response_body(Client3).
+	{ok, 200, _, Client3} = cowboyku_client:response(Client2),
+	{ok, <<"67890">>, _} = cowboyku_client:response_body(Client3).
 
 %% Check if sending request whose size is bigger 16000 bytes causes 413
 echo_body_qs_max_length(Config) ->
@@ -596,75 +596,75 @@ echo_body_qs_max_length(Config) ->
 	Bits = (DefaultMaxBodyQsLength - 4) * 8,
 	AppendedBody = <<$a:Bits>>,
 	Body = <<"echo=", AppendedBody/binary>>,
-	{ok, Client2} = cowboy_client:request(<<"POST">>,
+	{ok, Client2} = cowboyku_client:request(<<"POST">>,
 		build_url("/echo/body_qs", Config),
 		[{<<"connection">>, <<"close">>}],
 		Body, Client),
-	{ok, 413, _, _} = cowboy_client:response(Client2).
+	{ok, 413, _, _} = cowboyku_client:response(Client2).
 
 error_chain_handle_after_reply(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/", Config), Client),
-	{ok, Client3} = cowboy_client:request(<<"GET">>,
+	{ok, Client3} = cowboyku_client:request(<<"GET">>,
 		build_url("/handler_errors?case=handle_after_reply", Config), Client2),
-	{ok, 200, _, Client4} = cowboy_client:response(Client3),
-	{ok, 200, _, Client5} = cowboy_client:response(Client4),
-	{error, closed} = cowboy_client:response(Client5).
+	{ok, 200, _, Client4} = cowboyku_client:response(Client3),
+	{ok, 200, _, Client5} = cowboyku_client:response(Client4),
+	{error, closed} = cowboyku_client:response(Client5).
 
 error_chain_handle_before_reply(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/", Config), Client),
-	{ok, Client3} = cowboy_client:request(<<"GET">>,
+	{ok, Client3} = cowboyku_client:request(<<"GET">>,
 		build_url("/handler_errors?case=handle_before_reply", Config), Client2),
-	{ok, 200, _, Client4} = cowboy_client:response(Client3),
-	{ok, 500, _, Client5} = cowboy_client:response(Client4),
-	{error, closed} = cowboy_client:response(Client5).
+	{ok, 200, _, Client4} = cowboyku_client:response(Client3),
+	{ok, 500, _, Client5} = cowboyku_client:response(Client4),
+	{error, closed} = cowboyku_client:response(Client5).
 
 error_handle_after_reply(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/handler_errors?case=handle_after_reply", Config), Client),
-	{ok, 200, _, Client3} = cowboy_client:response(Client2),
-	{error, closed} = cowboy_client:response(Client3).
+	{ok, 200, _, Client3} = cowboyku_client:response(Client2),
+	{error, closed} = cowboyku_client:response(Client3).
 
 error_init_after_reply(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/handler_errors?case=init_after_reply", Config), Client),
-	{ok, 200, _, Client3} = cowboy_client:response(Client2),
-	{error, closed} = cowboy_client:response(Client3).
+	{ok, 200, _, Client3} = cowboyku_client:response(Client2),
+	{error, closed} = cowboyku_client:response(Client3).
 
 error_init_reply_handle_error(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/handler_errors?case=init_reply_handle_error", Config), Client),
-	{ok, 200, _, Client3} = cowboy_client:response(Client2),
-	{error, closed} = cowboy_client:response(Client3).
+	{ok, 200, _, Client3} = cowboyku_client:response(Client2),
+	{error, closed} = cowboyku_client:response(Client3).
 
 headers_dupe(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/headers/dupe", Config), Client),
-	{ok, 200, Headers, Client3} = cowboy_client:response(Client2),
+	{ok, 200, Headers, Client3} = cowboyku_client:response(Client2),
 	{<<"connection">>, <<"close">>}
 		= lists:keyfind(<<"connection">>, 1, Headers),
 	Connections = [H || H = {Name, _} <- Headers, Name =:= <<"connection">>],
 	1 = length(Connections),
-	{error, closed} = cowboy_client:response(Client3).
+	{error, closed} = cowboyku_client:response(Client3).
 
 http10_chunkless(Config) ->
 	Client = ?config(client, Config),
 	Transport = ?config(transport, Config),
-	{ok, Client2} = cowboy_client:connect(
+	{ok, Client2} = cowboyku_client:connect(
 		Transport, "localhost", ?config(port, Config), Client),
 	Data = "GET /chunked_response HTTP/1.0\r\nHost: localhost\r\n\r\n",
-	{ok, Client3} = cowboy_client:raw_request(Data, Client2),
-	{ok, 200, Headers, Client4} = cowboy_client:response(Client3),
+	{ok, Client3} = cowboyku_client:raw_request(Data, Client2),
+	{ok, 200, Headers, Client4} = cowboyku_client:response(Client3),
 	false = lists:keyfind(<<"transfer-encoding">>, 1, Headers),
 	%% Hack: we just try to get 28 bytes and compare.
-	{ok, Transport, Socket} = cowboy_client:transport(Client4),
+	{ok, Transport, Socket} = cowboyku_client:transport(Client4),
 	Buffer = element(7, Client4),
 	Buffer2 = case Transport:recv(Socket, 28 - byte_size(Buffer), 1000) of
 		{ok, Recv} -> << Buffer/binary, Recv/binary >>;
@@ -677,15 +677,15 @@ http10_hostless(Config) ->
 	Name = list_to_atom("http10_hostless_" ++ integer_to_list(Port10)),
 	ranch:start_listener(Name, 5,
 		?config(transport, Config), ?config(opts, Config) ++ [{port, Port10}],
-		cowboy_protocol, [
-			{env, [{dispatch, cowboy_router:compile([
+		cowboyku_protocol, [
+			{env, [{dispatch, cowboyku_router:compile([
 				{'_', [{"/http1.0/hostless", http_handler, []}]}])}]},
 			{max_keepalive, 50},
 			{timeout, 500}]
 	),
 	200 = quick_raw("GET /http1.0/hostless HTTP/1.0\r\n\r\n",
 		[{port, Port10}|Config]),
-	cowboy:stop_listener(http10).
+	cowboyku:stop_listener(http10).
 
 keepalive_max(Config) ->
 	Client = ?config(client, Config),
@@ -693,12 +693,12 @@ keepalive_max(Config) ->
 	ok = keepalive_max_loop(Client, URL, 50).
 
 keepalive_max_loop(Client, _, 0) ->
-	{error, closed} = cowboy_client:response(Client),
+	{error, closed} = cowboyku_client:response(Client),
 	ok;
 keepalive_max_loop(Client, URL, N) ->
 	Headers = [{<<"connection">>, <<"keep-alive">>}],
-	{ok, Client2} = cowboy_client:request(<<"GET">>, URL, Headers, Client),
-	{ok, 200, RespHeaders, Client3} = cowboy_client:response(Client2),
+	{ok, Client2} = cowboyku_client:request(<<"GET">>, URL, Headers, Client),
+	{ok, 200, RespHeaders, Client3} = cowboyku_client:response(Client2),
 	Expected = case N of
 		1 -> <<"close">>;
 		N -> <<"keep-alive">>
@@ -713,15 +713,15 @@ keepalive_nl(Config) ->
 	ok = keepalive_nl_loop(Client, URL, 10).
 
 keepalive_nl_loop(Client, _, 0) ->
-	{error, closed} = cowboy_client:response(Client),
+	{error, closed} = cowboyku_client:response(Client),
 	ok;
 keepalive_nl_loop(Client, URL, N) ->
 	Headers = [{<<"connection">>, <<"keep-alive">>}],
-	{ok, Client2} = cowboy_client:request(<<"GET">>, URL, Headers, Client),
-	{ok, 200, RespHeaders, Client3} = cowboy_client:response(Client2),
+	{ok, Client2} = cowboyku_client:request(<<"GET">>, URL, Headers, Client),
+	{ok, 200, RespHeaders, Client3} = cowboyku_client:response(Client2),
 	{<<"connection">>, <<"keep-alive">>}
 		= lists:keyfind(<<"connection">>, 1, RespHeaders),
-	{ok, Transport, Socket} = cowboy_client:transport(Client2),
+	{ok, Transport, Socket} = cowboyku_client:transport(Client2),
 	ok = Transport:send(Socket, <<"\r\n">>), %% empty line
 	keepalive_nl_loop(Client3, URL, N - 1).
 
@@ -734,12 +734,12 @@ multipart(Config) ->
 		"\r\n--OHai--"
 		"This is an epiloque."
 	>>,
-	{ok, Client2} = cowboy_client:request(<<"POST">>,
+	{ok, Client2} = cowboyku_client:request(<<"POST">>,
 		build_url("/multipart", Config),
 		[{<<"content-type">>, <<"multipart/x-makes-no-sense; boundary=OHai">>}],
 		Body, Client),
-	{ok, 200, _, Client3} = cowboy_client:response(Client2),
-	{ok, RespBody, _} = cowboy_client:response_body(Client3),
+	{ok, 200, _, Client3} = cowboyku_client:response(Client2),
+	{ok, RespBody, _} = cowboyku_client:response_body(Client3),
 	Parts = binary_to_term(RespBody),
 	Parts = [
 		{[{<<"x-name">>, <<"answer">>}], <<"42">>},
@@ -771,65 +771,65 @@ nc_zero(Config) ->
 
 onrequest(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/", Config), Client),
-	{ok, 200, Headers, Client3} = cowboy_client:response(Client2),
+	{ok, 200, Headers, Client3} = cowboyku_client:response(Client2),
 	{<<"server">>, <<"Serenity">>} = lists:keyfind(<<"server">>, 1, Headers),
-	{ok, <<"http_handler">>, _} = cowboy_client:response_body(Client3).
+	{ok, <<"http_handler">>, _} = cowboyku_client:response_body(Client3).
 
 onrequest_reply(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/?reply=1", Config), Client),
-	{ok, 200, Headers, Client3} = cowboy_client:response(Client2),
+	{ok, 200, Headers, Client3} = cowboyku_client:response(Client2),
 	{<<"server">>, <<"Cowboy">>} = lists:keyfind(<<"server">>, 1, Headers),
-	{ok, <<"replied!">>, _} = cowboy_client:response_body(Client3).
+	{ok, <<"replied!">>, _} = cowboyku_client:response_body(Client3).
 
 %% Hook for the above onrequest tests.
 onrequest_hook(Req) ->
-	case cowboy_req:qs_val(<<"reply">>, Req) of
+	case cowboyku_req:qs_val(<<"reply">>, Req) of
 		{undefined, Req2} ->
-			cowboy_req:set_resp_header(<<"server">>, <<"Serenity">>, Req2);
+			cowboyku_req:set_resp_header(<<"server">>, <<"Serenity">>, Req2);
 		{_, Req2} ->
-			{ok, Req3} = cowboy_req:reply(
+			{ok, Req3} = cowboyku_req:reply(
 				200, [], <<"replied!">>, Req2),
 			Req3
 	end.
 
 onresponse_capitalize(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/", Config), Client),
-	{ok, Transport, Socket} = cowboy_client:transport(Client2),
+	{ok, Transport, Socket} = cowboyku_client:transport(Client2),
 	{ok, Data} = Transport:recv(Socket, 0, 1000),
 	false = nomatch =:= binary:match(Data, <<"Content-Length">>).
 
 %% Hook for the above onresponse_capitalize test.
 onresponse_capitalize_hook(Status, Headers, Body, Req) ->
-	Headers2 = [{cowboy_bstr:capitalize_token(N), V}
+	Headers2 = [{cowboyku_bstr:capitalize_token(N), V}
 		|| {N, V} <- Headers],
-	{ok, Req2} = cowboy_req:reply(Status, Headers2, Body, Req),
+	{ok, Req2} = cowboyku_req:reply(Status, Headers2, Body, Req),
 	Req2.
 
 onresponse_crash(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/handler_errors?case=init_before_reply", Config), Client),
-	{ok, 777, Headers, _} = cowboy_client:response(Client2),
+	{ok, 777, Headers, _} = cowboyku_client:response(Client2),
 	{<<"x-hook">>, <<"onresponse">>} = lists:keyfind(<<"x-hook">>, 1, Headers).
 
 onresponse_reply(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/", Config), Client),
-	{ok, 777, Headers, Client3} = cowboy_client:response(Client2),
+	{ok, 777, Headers, Client3} = cowboyku_client:response(Client2),
 	{<<"x-hook">>, <<"onresponse">>} = lists:keyfind(<<"x-hook">>, 1, Headers),
 	%% Make sure we don't get the body initially sent.
-	{error, closed} = cowboy_client:response_body(Client3).
+	{error, closed} = cowboyku_client:response_body(Client3).
 
 %% Hook for the above onresponse tests.
 onresponse_hook(_, Headers, _, Req) ->
-	{ok, Req2} = cowboy_req:reply(
+	{ok, Req2} = cowboyku_req:reply(
 		<<"777 Lucky">>, [{<<"x-hook">>, <<"onresponse">>}|Headers], Req),
 	Req2.
 
@@ -846,105 +846,105 @@ parse_host(Config) ->
 	],
 	[begin
 		Client = ?config(client, Config),
-		{ok, Client2} = cowboy_client:request(<<"GET">>,
+		{ok, Client2} = cowboyku_client:request(<<"GET">>,
 			build_url("/req_attr?attr=host_and_port", Config),
 			[{<<"host">>, Host}],
 			Client),
-		{ok, 200, _, Client3} = cowboy_client:response(Client2),
-		{ok, Value, Client4} = cowboy_client:response_body(Client3),
-		{error, closed} = cowboy_client:response(Client4),
+		{ok, 200, _, Client3} = cowboyku_client:response(Client2),
+		{ok, Value, Client4} = cowboyku_client:response_body(Client3),
+		{error, closed} = cowboyku_client:response(Client4),
         Value
 	end || {Value, Host} <- Tests].
 
 pipeline(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/", Config), Client),
-	{ok, Client3} = cowboy_client:request(<<"GET">>,
+	{ok, Client3} = cowboyku_client:request(<<"GET">>,
 		build_url("/", Config), Client2),
-	{ok, Client4} = cowboy_client:request(<<"GET">>,
+	{ok, Client4} = cowboyku_client:request(<<"GET">>,
 		build_url("/", Config), Client3),
-	{ok, Client5} = cowboy_client:request(<<"GET">>,
+	{ok, Client5} = cowboyku_client:request(<<"GET">>,
 		build_url("/", Config), Client4),
-	{ok, Client6} = cowboy_client:request(<<"GET">>,
+	{ok, Client6} = cowboyku_client:request(<<"GET">>,
 		build_url("/", Config), [{<<"connection">>, <<"close">>}], Client5),
-	{ok, 200, _, Client7} = cowboy_client:response(Client6),
-	{ok, 200, _, Client8} = cowboy_client:response(Client7),
-	{ok, 200, _, Client9} = cowboy_client:response(Client8),
-	{ok, 200, _, Client10} = cowboy_client:response(Client9),
-	{ok, 200, _, Client11} = cowboy_client:response(Client10),
-	{error, closed} = cowboy_client:response(Client11).
+	{ok, 200, _, Client7} = cowboyku_client:response(Client6),
+	{ok, 200, _, Client8} = cowboyku_client:response(Client7),
+	{ok, 200, _, Client9} = cowboyku_client:response(Client8),
+	{ok, 200, _, Client10} = cowboyku_client:response(Client9),
+	{ok, 200, _, Client11} = cowboyku_client:response(Client10),
+	{error, closed} = cowboyku_client:response(Client11).
 
 pipeline_long_polling(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/long_polling", Config), Client),
-	{ok, Client3} = cowboy_client:request(<<"GET">>,
+	{ok, Client3} = cowboyku_client:request(<<"GET">>,
 		build_url("/long_polling", Config), Client2),
-	{ok, 102, _, Client4} = cowboy_client:response(Client3),
-	{ok, 102, _, Client5} = cowboy_client:response(Client4),
-	{error, closed} = cowboy_client:response(Client5).
+	{ok, 102, _, Client4} = cowboyku_client:response(Client3),
+	{ok, 102, _, Client5} = cowboyku_client:response(Client4),
+	{error, closed} = cowboyku_client:response(Client5).
 
 rest_param_all(Config) ->
 	Client = ?config(client, Config),
 	URL = build_url("/param_all", Config),
 	% Accept without param
-	{ok, Client2} = cowboy_client:request(<<"GET">>, URL,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>, URL,
 		[{<<"accept">>, <<"text/plain">>}], Client),
 	Client3 = check_response(Client2, <<"[]">>),
 	% Accept with param
-	{ok, Client4} = cowboy_client:request(<<"GET">>, URL,
+	{ok, Client4} = cowboyku_client:request(<<"GET">>, URL,
 		[{<<"accept">>, <<"text/plain;level=1">>}], Client3),
 	Client5 = check_response(Client4, <<"level=1">>),
 	% Accept with param and quality
-	{ok, Client6} = cowboy_client:request(<<"GET">>, URL,
+	{ok, Client6} = cowboyku_client:request(<<"GET">>, URL,
 		[{<<"accept">>,
 			<<"text/plain;level=1;q=0.8, text/plain;level=2;q=0.5">>}],
 		Client5),
 	Client7 = check_response(Client6, <<"level=1">>),
-	{ok, Client8} = cowboy_client:request(<<"GET">>, URL,
+	{ok, Client8} = cowboyku_client:request(<<"GET">>, URL,
 		[{<<"accept">>,
 			<<"text/plain;level=1;q=0.5, text/plain;level=2;q=0.8">>}],
 		Client7),
 	Client9 = check_response(Client8, <<"level=2">>),
 	% Without Accept
-	{ok, Client10} = cowboy_client:request(<<"GET">>, URL, [], Client9),
+	{ok, Client10} = cowboyku_client:request(<<"GET">>, URL, [], Client9),
 	Client11 = check_response(Client10, <<"'*'">>),
 	% Content-Type without param
-	{ok, Client12} = cowboy_client:request(<<"PUT">>, URL,
+	{ok, Client12} = cowboyku_client:request(<<"PUT">>, URL,
 		[{<<"content-type">>, <<"text/plain">>}], Client11),
-	{ok, 204, _, Client13} = cowboy_client:response(Client12),
+	{ok, 204, _, Client13} = cowboyku_client:response(Client12),
 	% Content-Type with param
-	{ok, Client14} = cowboy_client:request(<<"PUT">>, URL,
+	{ok, Client14} = cowboyku_client:request(<<"PUT">>, URL,
 		[{<<"content-type">>, <<"text/plain; charset=utf-8">>}], Client13),
-	{ok, 204, _, _} = cowboy_client:response(Client14).
+	{ok, 204, _, _} = cowboyku_client:response(Client14).
 
 check_response(Client, Body) ->
-	{ok, 200, _, Client2} = cowboy_client:response(Client),
-	{ok, Body, Client3} = cowboy_client:response_body(Client2),
+	{ok, 200, _, Client2} = cowboyku_client:response(Client),
+	{ok, Body, Client3} = cowboyku_client:response_body(Client2),
 	Client3.
 
 rest_bad_accept(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/bad_accept", Config),
 		[{<<"accept">>, <<"1">>}],
 		Client),
-	{ok, 400, _, _} = cowboy_client:response(Client2).
+	{ok, 400, _, _} = cowboyku_client:response(Client2).
 
 rest_bad_content_type(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"PATCH">>,
+	{ok, Client2} = cowboyku_client:request(<<"PATCH">>,
 		build_url("/bad_content_type", Config),
 		[{<<"content-type">>, <<"text/plain, text/html">>}],
 		<<"Whatever">>, Client),
-	{ok, 415, _, _} = cowboy_client:response(Client2).
+	{ok, 415, _, _} = cowboyku_client:response(Client2).
 
 rest_expires(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/rest_expires", Config), Client),
-	{ok, 200, RespHeaders, _} = cowboy_client:response(Client2),
+	{ok, 200, RespHeaders, _} = cowboyku_client:response(Client2),
 	{_, Expires} = lists:keyfind(<<"expires">>, 1, RespHeaders),
 	{_, LastModified} = lists:keyfind(<<"last-modified">>, 1, RespHeaders),
 	Expires = LastModified = <<"Fri, 21 Sep 2012 22:36:14 GMT">>,
@@ -959,8 +959,8 @@ rest_keepalive_loop(_, _, 0) ->
 	ok;
 rest_keepalive_loop(Client, URL, N) ->
 	Headers = [{<<"connection">>, <<"keep-alive">>}],
-	{ok, Client2} = cowboy_client:request(<<"GET">>, URL, Headers, Client),
-	{ok, 200, RespHeaders, Client3} = cowboy_client:response(Client2),
+	{ok, Client2} = cowboyku_client:request(<<"GET">>, URL, Headers, Client),
+	{ok, 200, RespHeaders, Client3} = cowboyku_client:response(Client2),
 	{<<"connection">>, <<"keep-alive">>}
 		= lists:keyfind(<<"connection">>, 1, RespHeaders),
 	rest_keepalive_loop(Client3, URL, N - 1).
@@ -976,9 +976,9 @@ rest_keepalive_post_loop(Config, Client, simple_post, N) ->
 		{<<"connection">>, <<"keep-alive">>},
 		{<<"content-type">>, <<"text/plain">>}
 	],
-	{ok, Client2} = cowboy_client:request(<<"POST">>,
+	{ok, Client2} = cowboyku_client:request(<<"POST">>,
 		build_url("/simple_post", Config), Headers, "12345", Client),
-	{ok, 303, RespHeaders, Client3} = cowboy_client:response(Client2),
+	{ok, 303, RespHeaders, Client3} = cowboyku_client:response(Client2),
 	{<<"connection">>, <<"keep-alive">>}
 		= lists:keyfind(<<"connection">>, 1, RespHeaders),
 	rest_keepalive_post_loop(Config, Client3, forbidden_post, N - 1);
@@ -987,38 +987,38 @@ rest_keepalive_post_loop(Config, Client, forbidden_post, N) ->
 		{<<"connection">>, <<"keep-alive">>},
 		{<<"content-type">>, <<"text/plain">>}
 	],
-	{ok, Client2} = cowboy_client:request(<<"POST">>,
+	{ok, Client2} = cowboyku_client:request(<<"POST">>,
 		build_url("/forbidden_post", Config), Headers, "12345", Client),
-	{ok, 403, RespHeaders, Client3} = cowboy_client:response(Client2),
+	{ok, 403, RespHeaders, Client3} = cowboyku_client:response(Client2),
 	{<<"connection">>, <<"keep-alive">>}
 		= lists:keyfind(<<"connection">>, 1, RespHeaders),
 	rest_keepalive_post_loop(Config, Client3, simple_post, N - 1).
 
 rest_missing_get_callbacks(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/missing_get_callbacks", Config), Client),
-	{ok, 500, _, _} = cowboy_client:response(Client2).
+	{ok, 500, _, _} = cowboyku_client:response(Client2).
 
 rest_missing_put_callbacks(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"PUT">>,
+	{ok, Client2} = cowboyku_client:request(<<"PUT">>,
 		build_url("/missing_put_callbacks", Config),
 		[{<<"content-type">>, <<"application/json">>}],
 		<<"{}">>, Client),
-	{ok, 500, _, _} = cowboy_client:response(Client2).
+	{ok, 500, _, _} = cowboyku_client:response(Client2).
 
 rest_nodelete(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"DELETE">>,
+	{ok, Client2} = cowboyku_client:request(<<"DELETE">>,
 		build_url("/nodelete", Config), Client),
-	{ok, 500, _, _} = cowboy_client:response(Client2).
+	{ok, 500, _, _} = cowboyku_client:response(Client2).
 
 rest_options_default(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"OPTIONS">>,
+	{ok, Client2} = cowboyku_client:request(<<"OPTIONS">>,
 		build_url("/rest_empty_resource", Config), Client),
-	{ok, 200, Headers, _} = cowboy_client:response(Client2),
+	{ok, 200, Headers, _} = cowboyku_client:response(Client2),
 	{_, <<"HEAD, GET, OPTIONS">>} = lists:keyfind(<<"allow">>, 1, Headers).
 
 rest_patch(Config) ->
@@ -1030,9 +1030,9 @@ rest_patch(Config) ->
 	],
 	Client = ?config(client, Config),
 	_ = [begin
-		{ok, Client2} = cowboy_client:request(<<"PATCH">>,
+		{ok, Client2} = cowboyku_client:request(<<"PATCH">>,
 			build_url("/patch", Config), Headers, Body, Client),
-		{ok, Status, _, _} = cowboy_client:response(Client2),
+		{ok, Status, _, _} = cowboyku_client:response(Client2),
 		ok
 	end || {Status, Headers, Body} <- Tests].
 
@@ -1041,27 +1041,27 @@ rest_post_charset(Config) ->
 	Headers = [
 		{<<"content-type">>, <<"text/plain;charset=UTF-8">>}
 	],
-	{ok, Client2} = cowboy_client:request(<<"POST">>,
+	{ok, Client2} = cowboyku_client:request(<<"POST">>,
 		build_url("/post_charset", Config), Headers, "12345", Client),
-	{ok, 204, _, _} = cowboy_client:response(Client2).
+	{ok, 204, _, _} = cowboyku_client:response(Client2).
 
 rest_postonly(Config) ->
 	Client = ?config(client, Config),
 	Headers = [
 		{<<"content-type">>, <<"text/plain">>}
 	],
-	{ok, Client2} = cowboy_client:request(<<"POST">>,
+	{ok, Client2} = cowboyku_client:request(<<"POST">>,
 		build_url("/postonly", Config), Headers, "12345", Client),
-	{ok, 204, _, _} = cowboy_client:response(Client2).
+	{ok, 204, _, _} = cowboyku_client:response(Client2).
 
 rest_resource_get_etag(Config, Type) ->
 	rest_resource_get_etag(Config, Type, []).
 
 rest_resource_get_etag(Config, Type, Headers) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/resetags?type=" ++ Type, Config), Headers, Client),
-	{ok, Status, RespHeaders, _} = cowboy_client:response(Client2),
+	{ok, Status, RespHeaders, _} = cowboyku_client:response(Client2),
 	case lists:keyfind(<<"etag">>, 1, RespHeaders) of
 		false -> {Status, false};
 		{<<"etag">>, ETag} -> {Status, ETag}
@@ -1096,47 +1096,47 @@ rest_resource_etags_if_none_match(Config) ->
 
 set_env_dispatch(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/", Config), Client),
-	{ok, 400, _, _} = cowboy_client:response(Client2),
-	ok = cowboy:set_env(set_env, dispatch,
-		cowboy_router:compile([{'_', [{"/", http_handler, []}]}])),
-	{ok, Client3} = cowboy_client:request(<<"GET">>,
+	{ok, 400, _, _} = cowboyku_client:response(Client2),
+	ok = cowboyku:set_env(set_env, dispatch,
+		cowboyku_router:compile([{'_', [{"/", http_handler, []}]}])),
+	{ok, Client3} = cowboyku_client:request(<<"GET">>,
 		build_url("/", Config), Client),
-	{ok, 200, _, _} = cowboy_client:response(Client3).
+	{ok, 200, _, _} = cowboyku_client:response(Client3).
 
 set_resp_body(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/set_resp/body", Config), Client),
-	{ok, 200, _, Client3} = cowboy_client:response(Client2),
+	{ok, 200, _, Client3} = cowboyku_client:response(Client2),
 	{ok, <<"A flameless dance does not equal a cycle">>, _}
-		= cowboy_client:response_body(Client3).
+		= cowboyku_client:response_body(Client3).
 
 set_resp_header(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/set_resp/header", Config), Client),
-	{ok, 200, Headers, _} = cowboy_client:response(Client2),
+	{ok, 200, Headers, _} = cowboyku_client:response(Client2),
 	{<<"vary">>, <<"Accept">>} = lists:keyfind(<<"vary">>, 1, Headers),
 	{<<"set-cookie">>, _} = lists:keyfind(<<"set-cookie">>, 1, Headers).
 
 set_resp_overwrite(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/set_resp/overwrite", Config), Client),
-	{ok, 200, Headers, _} = cowboy_client:response(Client2),
+	{ok, 200, Headers, _} = cowboyku_client:response(Client2),
 	{<<"server">>, <<"DesireDrive/1.0">>}
 		= lists:keyfind(<<"server">>, 1, Headers).
 
 slowloris(Config) ->
 	Client = ?config(client, Config),
 	Transport = ?config(transport, Config),
-	{ok, Client2} = cowboy_client:connect(
+	{ok, Client2} = cowboyku_client:connect(
 		Transport, "localhost", ?config(port, Config), Client),
 	try
 		[begin
-			{ok, _} = cowboy_client:raw_request([C], Client2),
+			{ok, _} = cowboyku_client:raw_request([C], Client2),
 			receive after 25 -> ok end
 		end || C <- "GET / HTTP/1.1\r\nHost: localhost\r\n"
 			"User-Agent: Mozilla/5.0 (Windows; U; Windows NT 6.0; en-US)\r\n"
@@ -1149,22 +1149,22 @@ slowloris(Config) ->
 slowloris2(Config) ->
 	Client = ?config(client, Config),
 	Transport = ?config(transport, Config),
-	{ok, Client2} = cowboy_client:connect(
+	{ok, Client2} = cowboyku_client:connect(
 		Transport, "localhost", ?config(port, Config), Client),
-	{ok, _} = cowboy_client:raw_request("GET / HTTP/1.1\r\n", Client2),
+	{ok, _} = cowboyku_client:raw_request("GET / HTTP/1.1\r\n", Client2),
 	receive after 300 -> ok end,
-	{ok, _} = cowboy_client:raw_request("Host: localhost\r\n", Client2),
+	{ok, _} = cowboyku_client:raw_request("Host: localhost\r\n", Client2),
 	receive after 300 -> ok end,
-	{ok, 408, _, _} = cowboy_client:response(Client2).
+	{ok, 408, _, _} = cowboyku_client:response(Client2).
 
 static_attribute_etag(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/static_attribute_etag/index.html", Config), Client),
-	{ok, Client3} = cowboy_client:request(<<"GET">>,
+	{ok, Client3} = cowboyku_client:request(<<"GET">>,
 		build_url("/static_attribute_etag/index.html", Config), Client2),
-	{ok, 200, Headers1, Client4} = cowboy_client:response(Client3),
-	{ok, 200, Headers2, _} = cowboy_client:response(Client4),
+	{ok, 200, Headers1, Client4} = cowboyku_client:response(Client3),
+	{ok, 200, Headers2, _} = cowboyku_client:response(Client4),
 	{<<"etag">>, ETag1} = lists:keyfind(<<"etag">>, 1, Headers1),
 	{<<"etag">>, ETag2} = lists:keyfind(<<"etag">>, 1, Headers2),
 	false = ETag1 =:= undefined,
@@ -1172,12 +1172,12 @@ static_attribute_etag(Config) ->
 
 static_function_etag(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/static_function_etag/index.html", Config), Client),
-	{ok, Client3} = cowboy_client:request(<<"GET">>,
+	{ok, Client3} = cowboyku_client:request(<<"GET">>,
 		build_url("/static_function_etag/index.html", Config), Client2),
-	{ok, 200, Headers1, Client4} = cowboy_client:response(Client3),
-	{ok, 200, Headers2, _} = cowboy_client:response(Client4),
+	{ok, 200, Headers1, Client4} = cowboyku_client:response(Client3),
+	{ok, 200, Headers2, _} = cowboyku_client:response(Client4),
 	{<<"etag">>, ETag1} = lists:keyfind(<<"etag">>, 1, Headers1),
 	{<<"etag">>, ETag2} = lists:keyfind(<<"etag">>, 1, Headers2),
 	false = ETag1 =:= undefined,
@@ -1185,60 +1185,60 @@ static_function_etag(Config) ->
 
 static_mimetypes_function(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/static_mimetypes_function/index.html", Config), Client),
-	{ok, 200, Headers, _} = cowboy_client:response(Client2),
+	{ok, 200, Headers, _} = cowboyku_client:response(Client2),
 	{<<"content-type">>, <<"text/html">>}
 		= lists:keyfind(<<"content-type">>, 1, Headers).
 
 static_specify_file(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/static_specify_file", Config), Client),
-	{ok, 200, Headers, Client3} = cowboy_client:response(Client2),
+	{ok, 200, Headers, Client3} = cowboyku_client:response(Client2),
 	{<<"content-type">>, <<"text/css">>}
 		= lists:keyfind(<<"content-type">>, 1, Headers),
-	{ok, <<"body{color:red}\n">>, _} = cowboy_client:response_body(Client3).
+	{ok, <<"body{color:red}\n">>, _} = cowboyku_client:response_body(Client3).
 
 static_specify_file_catchall(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/static_specify_file/none", Config), Client),
-	{ok, 200, Headers, Client3} = cowboy_client:response(Client2),
+	{ok, 200, Headers, Client3} = cowboyku_client:response(Client2),
 	{<<"content-type">>, <<"text/css">>}
 		= lists:keyfind(<<"content-type">>, 1, Headers),
-	{ok, <<"body{color:red}\n">>, _} = cowboy_client:response_body(Client3).
+	{ok, <<"body{color:red}\n">>, _} = cowboyku_client:response_body(Client3).
 
 static_test_file(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/static/unknown", Config), Client),
-	{ok, 200, Headers, _} = cowboy_client:response(Client2),
+	{ok, 200, Headers, _} = cowboyku_client:response(Client2),
 	{<<"content-type">>, <<"application/octet-stream">>}
 		= lists:keyfind(<<"content-type">>, 1, Headers).
 
 static_test_file_css(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/static/style.css", Config), Client),
-	{ok, 200, Headers, _} = cowboy_client:response(Client2),
+	{ok, 200, Headers, _} = cowboyku_client:response(Client2),
 	{<<"content-type">>, <<"text/css">>}
 		= lists:keyfind(<<"content-type">>, 1, Headers).
 
 stream_body_set_resp(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/stream_body/set_resp", Config), Client),
-	{ok, 200, _, Client3} = cowboy_client:response(Client2),
+	{ok, 200, _, Client3} = cowboyku_client:response(Client2),
 	{ok, <<"stream_body_set_resp">>, _}
-		= cowboy_client:response_body(Client3).
+		= cowboyku_client:response_body(Client3).
 
 stream_body_set_resp_close(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/stream_body/set_resp_close", Config), Client),
-	{ok, 200, _, Client3} = cowboy_client:response(Client2),
-	{ok, Transport, Socket} = cowboy_client:transport(Client3),
+	{ok, 200, _, Client3} = cowboyku_client:response(Client2),
+	{ok, Transport, Socket} = cowboyku_client:transport(Client3),
 	case element(7, Client3) of
 		<<"stream_body_set_resp_close">> ->
 			ok;
@@ -1251,11 +1251,11 @@ stream_body_set_resp_close(Config) ->
 
 stream_body_set_resp_chunked(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/stream_body/set_resp_chunked", Config), Client),
-	{ok, 200, Headers, Client3} = cowboy_client:response(Client2),
+	{ok, 200, Headers, Client3} = cowboyku_client:response(Client2),
 	{_, <<"chunked">>} = lists:keyfind(<<"transfer-encoding">>, 1, Headers),
-	{ok, Transport, Socket} = cowboy_client:transport(Client3),
+	{ok, Transport, Socket} = cowboyku_client:transport(Client3),
 	case element(7, Client3) of
 		<<"B\r\nstream_body\r\n11\r\n_set_resp_chunked\r\n0\r\n\r\n">> ->
 			ok;
@@ -1269,14 +1269,14 @@ stream_body_set_resp_chunked(Config) ->
 stream_body_set_resp_chunked10(Config) ->
 	Client = ?config(client, Config),
 	Transport = ?config(transport, Config),
-	{ok, Client2} = cowboy_client:connect(
+	{ok, Client2} = cowboyku_client:connect(
 		Transport, "localhost", ?config(port, Config), Client),
 	Data = ["GET /stream_body/set_resp_chunked HTTP/1.0\r\n",
 		"Host: localhost\r\n\r\n"],
-	{ok, Client3} = cowboy_client:raw_request(Data, Client2),
-	{ok, 200, Headers, Client4} = cowboy_client:response(Client3),
+	{ok, Client3} = cowboyku_client:raw_request(Data, Client2),
+	{ok, 200, Headers, Client4} = cowboyku_client:response(Client3),
 	false = lists:keymember(<<"transfer-encoding">>, 1, Headers),
-	{ok, Transport, Socket} = cowboy_client:transport(Client4),
+	{ok, Transport, Socket} = cowboyku_client:transport(Client4),
 	case element(7, Client4) of
 		<<"stream_body_set_resp_chunked">> ->
 			ok;
@@ -1290,64 +1290,64 @@ stream_body_set_resp_chunked10(Config) ->
 
 streamed_response(Config) ->
 	Client = ?config(client, Config),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/streamed_response", Config), Client),
-	{ok, 200, Headers, Client3} = cowboy_client:response(Client2),
+	{ok, 200, Headers, Client3} = cowboyku_client:response(Client2),
 	false = lists:keymember(<<"transfer-encoding">>, 1, Headers),
-	{ok, Transport, Socket} = cowboy_client:transport(Client3),
+	{ok, Transport, Socket} = cowboyku_client:transport(Client3),
 	{ok, <<"streamed_handler\r\nworks fine!">>}
 		= Transport:recv(Socket, 29, 1000),
-	{error, closed} = cowboy_client:response(Client3).
+	{error, closed} = cowboyku_client:response(Client3).
 
 te_chunked(Config) ->
 	Client = ?config(client, Config),
 	Body = list_to_binary(io_lib:format("~p", [lists:seq(1, 100)])),
 	Chunks = body_to_chunks(50, Body, []),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/echo/body", Config),
 		[{<<"transfer-encoding">>, <<"chunked">>}],
 		Chunks, Client),
-	{ok, 200, _, Client3} = cowboy_client:response(Client2),
-	{ok, Body, _} = cowboy_client:response_body(Client3).
+	{ok, 200, _, Client3} = cowboyku_client:response(Client2),
+	{ok, Body, _} = cowboyku_client:response_body(Client3).
 
 te_chunked_chopped(Config) ->
 	Client = ?config(client, Config),
 	Body = list_to_binary(io_lib:format("~p", [lists:seq(1, 100)])),
 	Body2 = iolist_to_binary(body_to_chunks(50, Body, [])),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/echo/body", Config),
 		[{<<"transfer-encoding">>, <<"chunked">>}], Client),
-	{ok, Transport, Socket} = cowboy_client:transport(Client2),
+	{ok, Transport, Socket} = cowboyku_client:transport(Client2),
 	_ = [begin
 		ok = Transport:send(Socket, << C >>),
 		ok = timer:sleep(10)
 	end || << C >> <= Body2],
-	{ok, 200, _, Client3} = cowboy_client:response(Client2),
-	{ok, Body, _} = cowboy_client:response_body(Client3).
+	{ok, 200, _, Client3} = cowboyku_client:response(Client2),
+	{ok, Body, _} = cowboyku_client:response_body(Client3).
 
 te_chunked_delayed(Config) ->
 	Client = ?config(client, Config),
 	Body = list_to_binary(io_lib:format("~p", [lists:seq(1, 100)])),
 	Chunks = body_to_chunks(50, Body, []),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/echo/body", Config),
 		[{<<"transfer-encoding">>, <<"chunked">>}], Client),
-	{ok, Transport, Socket} = cowboy_client:transport(Client2),
+	{ok, Transport, Socket} = cowboyku_client:transport(Client2),
 	_ = [begin
 		ok = Transport:send(Socket, Chunk),
 		ok = timer:sleep(10)
 	end || Chunk <- Chunks],
-	{ok, 200, _, Client3} = cowboy_client:response(Client2),
-	{ok, Body, _} = cowboy_client:response_body(Client3).
+	{ok, 200, _, Client3} = cowboyku_client:response(Client2),
+	{ok, Body, _} = cowboyku_client:response_body(Client3).
 
 te_chunked_split_body(Config) ->
 	Client = ?config(client, Config),
 	Body = list_to_binary(io_lib:format("~p", [lists:seq(1, 100)])),
 	Chunks = body_to_chunks(50, Body, []),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/echo/body", Config),
 		[{<<"transfer-encoding">>, <<"chunked">>}], Client),
-	{ok, Transport, Socket} = cowboy_client:transport(Client2),
+	{ok, Transport, Socket} = cowboyku_client:transport(Client2),
 	_ = [begin
 		case Chunk of
 			%% Final chunk.
@@ -1364,17 +1364,17 @@ te_chunked_split_body(Config) ->
 				ok = Transport:send(Socket, [PartB, <<"\r\n">>])
 		end
 	end || Chunk <- Chunks],
-	{ok, 200, _, Client3} = cowboy_client:response(Client2),
-	{ok, Body, _} = cowboy_client:response_body(Client3).
+	{ok, 200, _, Client3} = cowboyku_client:response(Client2),
+	{ok, Body, _} = cowboyku_client:response_body(Client3).
 
 te_chunked_split_crlf(Config) ->
 	Client = ?config(client, Config),
 	Body = list_to_binary(io_lib:format("~p", [lists:seq(1, 100)])),
 	Chunks = body_to_chunks(50, Body, []),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/echo/body", Config),
 		[{<<"transfer-encoding">>, <<"chunked">>}], Client),
-	{ok, Transport, Socket} = cowboy_client:transport(Client2),
+	{ok, Transport, Socket} = cowboyku_client:transport(Client2),
 	_ = [begin
 		%% <<"\r\n">> is last 2 bytes of Chunk split before or after <<"\r">>.
 		Len = byte_size(Chunk) - (random:uniform(2) - 1),
@@ -1383,13 +1383,13 @@ te_chunked_split_crlf(Config) ->
 		ok = timer:sleep(10),
 		ok = Transport:send(Socket, End)
 	end || Chunk <- Chunks],
-	{ok, 200, _, Client3} = cowboy_client:response(Client2),
-	{ok, Body, _} = cowboy_client:response_body(Client3).
+	{ok, 200, _, Client3} = cowboyku_client:response(Client2),
+	{ok, Body, _} = cowboyku_client:response_body(Client3).
 
 te_identity(Config) ->
 	Client = ?config(client, Config),
 	Body = list_to_binary(io_lib:format("~p", [lists:seq(1, 100)])),
-	{ok, Client2} = cowboy_client:request(<<"GET">>,
+	{ok, Client2} = cowboyku_client:request(<<"GET">>,
 		build_url("/echo/body", Config), [], Body, Client),
-	{ok, 200, _, Client3} = cowboy_client:response(Client2),
-	{ok, Body, _} = cowboy_client:response_body(Client3).
+	{ok, 200, _, Client3} = cowboyku_client:response(Client2),
+	{ok, Body, _} = cowboyku_client:response_body(Client3).

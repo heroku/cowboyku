@@ -1,10 +1,10 @@
-Cowboy User Guide
-=================
+Cowboyku User Guide
+===================
 
-The Cowboy User Guide explores the modern Web and how to make
-best use of Cowboy for writing powerful web applications.
+The Cowboyku User Guide explores the modern Web and how to make
+best use of Cowboyku for writing powerful web applications.
 
-Introducing Cowboy
+Introducing Cowboyku
 ------------------
 
  *  [Introduction](introduction.md)
@@ -70,7 +70,7 @@ Advanced HTTP
  *  Authentication
  *  Sessions
 
-Advanced Cowboy usage
+Advanced Cowboyku usage
 ---------------------
 
  *  Optimization guide

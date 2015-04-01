@@ -2,4 +2,4 @@
 -export([init/3]).
 
 init(_Transport, _Req, _Opts) ->
-	{upgrade, protocol, cowboy_rest}.
+	{upgrade, protocol, cowboyku_rest}.

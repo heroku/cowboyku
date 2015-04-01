@@ -8,7 +8,7 @@
 -export([put_text_plain/2]).
 
 init(_Transport, _Req, _Opts) ->
-	{upgrade, protocol, cowboy_rest}.
+	{upgrade, protocol, cowboyku_rest}.
 
 allowed_methods(Req, State) ->
 	{[<<"GET">>, <<"PUT">>], Req, State}.
@@ -18,7 +18,7 @@ content_types_provided(Req, State) ->
 
 get_text_plain(Req, State) ->
 	{{_, _, Param}, Req2} =
-		cowboy_req:meta(media_type, Req, {{<<"text">>, <<"plain">>}, []}),
+		cowboyku_req:meta(media_type, Req, {{<<"text">>, <<"plain">>}, []}),
 	Body = if
 	Param == '*' ->
 		<<"'*'">>;

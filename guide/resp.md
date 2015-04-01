@@ -8,36 +8,36 @@ trigger a crash. The response may be sent in one go or
 with its body streamed by chunks of arbitrary size.
 
 You can also set headers or the response body in advance
-and Cowboy will use them when you finally do reply.
+and Cowboyku will use them when you finally do reply.
 
 Reply
 -----
 
 You can send a reply with no particular headers or body.
-Cowboy will make sure to send the mandatory headers with
+Cowboyku will make sure to send the mandatory headers with
 the response.
 
 ``` erlang
-{ok, Req2} = cowboy_req:reply(200, Req).
+{ok, Req2} = cowboyku_req:reply(200, Req).
 ```
 
 You can define headers to be sent with the response. Note
-that header names must be lowercase. Again, Cowboy will
+that header names must be lowercase. Again, Cowboyku will
 make sure to send the mandatory headers with the response.
 
 ``` erlang
-{ok, Req2} = cowboy_req:reply(303, [
+{ok, Req2} = cowboyku_req:reply(303, [
     {<<"location">>, <<"http://ninenines.eu">>}
 ], Req).
 ```
 
-You can override headers that Cowboy would send otherwise.
+You can override headers that Cowboyku would send otherwise.
 Any header set by the user will be used over the ones set
-by Cowboy. For example, you can advertise yourself as a
+by Cowboyku. For example, you can advertise yourself as a
 different server.
 
 ``` erlang
-{ok, Req2} = cowboy_req:reply(200, [
+{ok, Req2} = cowboyku_req:reply(200, [
     {<<"server">>, <<"yaws">>}
 ], Req).
 ```
@@ -45,13 +45,13 @@ different server.
 We also saw earlier how to force close the connection by
 overriding the connection header.
 
-Finally, you can also send a body with the response. Cowboy
+Finally, you can also send a body with the response. Cowboyku
 will automatically set the content-length header if you do.
 We recommend that you set the content-type header so the
 client may know how to read the body.
 
 ``` erlang
-{ok, Req2} = cowboy_req:reply(200, [
+{ok, Req2} = cowboyku_req:reply(200, [
     {<<"content-type">>, <<"text/plain">>
 ], "Hello world!", Req).
 ```
@@ -59,7 +59,7 @@ client may know how to read the body.
 Here is the same example but sending HTML this time.
 
 ``` erlang
-{ok, Req2} = cowboy_req:reply(200, [
+{ok, Req2} = cowboyku_req:reply(200, [
     {<<"content-type">>, <<"text/html">>}
 ], "<html><head>Hello world!</head><body><p>Hats off!</p></body></html>", Req).
 ```
@@ -74,10 +74,10 @@ initiate the reply by sending the response status code.
 Then you can send the body in chunks of arbitrary size.
 
 ``` erlang
-{ok, Req2} = cowboy_req:chunked_reply(200, Req),
-ok = cowboy_req:chunk("Hello...", Req2),
-ok = cowboy_req:chunk("chunked...", Req2),
-ok = cowboy_req:chunk("world!!", Req2).
+{ok, Req2} = cowboyku_req:chunked_reply(200, Req),
+ok = cowboyku_req:chunk("Hello...", Req2),
+ok = cowboyku_req:chunk("chunked...", Req2),
+ok = cowboyku_req:chunk("world!!", Req2).
 ```
 
 You should make sure to match on `ok` as an error may be
@@ -88,11 +88,11 @@ a content-type header, it is still recommended. You can
 set this header or any other just like for normal replies.
 
 ``` erlang
-{ok, Req2} = cowboy_req:chunked_reply(200, [
+{ok, Req2} = cowboyku_req:chunked_reply(200, [
     {<<"content-type">>, <<"text/html">>}
 ], Req),
-ok = cowboy_req:chunk("<html><head>Hello world!</head>", Req2),
-ok = cowboy_req:chunk("<body><p>Hats off!</p></body></html>", Req2).
+ok = cowboyku_req:chunk("<html><head>Hello world!</head>", Req2),
+ok = cowboyku_req:chunk("<body><p>Hats off!</p></body></html>", Req2).
 ```
 
 Note that the reply and each chunk following it are sent
@@ -104,19 +104,19 @@ Preset response headers
 You can define response headers in advance. They will be
 merged into the headers given in the reply call. Headers
 in the reply call override preset response headers which
-override the default Cowboy headers.
+override the default Cowboyku headers.
 
 ``` erlang
-Req2 = cowboy_req:set_resp_header(<<"allow">>, "GET", Req).
+Req2 = cowboyku_req:set_resp_header(<<"allow">>, "GET", Req).
 ```
 
 You can check if a response header has already been set.
 This will only check the response headers that you set,
-and not the ones Cowboy will add when actually sending
+and not the ones Cowboyku will add when actually sending
 the reply.
 
 ``` erlang
-cowboy_req:has_resp_header(<<"allow">>, Req).
+cowboyku_req:has_resp_header(<<"allow">>, Req).
 ```
 
 It will return `true` if the header is defined, and `false`
@@ -126,7 +126,7 @@ Finally, you can also delete a preset response header if
 needed. If you do, it will not be sent.
 
 ``` erlang
-Req2 = cowboy_req:delete_resp_header(<<"allow">>, Req).
+Req2 = cowboyku_req:delete_resp_header(<<"allow">>, Req).
 ```
 
 Preset response body
@@ -137,7 +137,7 @@ body will be ignored if you then choose to send a chunked
 reply, or if you send a reply with an explicit body.
 
 ``` erlang
-Req2 = cowboy_req:set_resp_body("Hello world!", Req).
+Req2 = cowboyku_req:set_resp_body("Hello world!", Req).
 ```
 
 You can also set a fun that will be called when it is time
@@ -153,7 +153,7 @@ user.
 F = fun (Socket, Transport) ->
     Transport:send(Socket, "Hello world!")
 end,
-Req2 = cowboy_req:set_resp_body_fun(12, F, Req).
+Req2 = cowboyku_req:set_resp_body_fun(12, F, Req).
 ```
 
 If you do not know the length of the body, you should use
@@ -164,11 +164,11 @@ F = fun (SendChunk) ->
     Body = lists:duplicate(random:uniform(1024, $a)),
     SendChunk(Body)
 end,
-Req2 = cowboy_req:set_resp_body_fun(chunked, F, Req).
+Req2 = cowboyku_req:set_resp_body_fun(chunked, F, Req).
 ```
 
 Finally, you can also send data on the socket directly,
-without knowing the length in advance. Cowboy may be
+without knowing the length in advance. Cowboyku may be
 forced to close the connection at the end of the response
 though depending on the protocol capabilities.
 
@@ -177,14 +177,14 @@ F = fun (Socket, Transport) ->
     Body = lists:duplicate(random:uniform(1024, $a)),
     Transport:send(Socket, Body)
 end,
-Req2 = cowboy_req:set_resp_body_fun(F, Req).
+Req2 = cowboyku_req:set_resp_body_fun(F, Req).
 ```
 
 Sending files
 -------------
 
 You can send files directly from disk without having to
-read them. Cowboy will use the `sendfile` syscall when
+read them. Cowboyku will use the `sendfile` syscall when
 possible, which means that the file is sent to the socket
 directly from the kernel, which is a lot more performant
 than doing it from userland.
@@ -196,7 +196,7 @@ can be known in advance.
 F = fun (Socket, Transport) ->
     Transport:sendfile(Socket, "priv/styles.css")
 end,
-Req2 = cowboy_req:set_resp_body_fun(FileSize, F, Req).
+Req2 = cowboyku_req:set_resp_body_fun(FileSize, F, Req).
 ```
 
 Please see the Ranch guide for more information about

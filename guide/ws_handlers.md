@@ -10,7 +10,7 @@ are then handled by websocket handlers.
 
 Both sides of the socket can send data at any time asynchronously.
 
-Websocket is an IETF standard. Cowboy supports the standard and all
+Websocket is an IETF standard. Cowboyku supports the standard and all
 the drafts that were previously implemented by browsers. Websocket
 is implemented by most browsers today, although for backward
 compatibility reasons a solution like [Bullet](https://github.com/extend/bullet)
@@ -26,15 +26,15 @@ handler to decide to process this data, and optionally send a reply
 to the client.
 
 The first thing to do to be able to handle websockets is to tell
-Cowboy that it should upgrade the connection to use the Websocket
+Cowboyku that it should upgrade the connection to use the Websocket
 protocol, as follow.
 
 ``` erlang
 init({tcp, http}, Req, Opts) ->
-    {upgrade, protocol, cowboy_websocket}.
+    {upgrade, protocol, cowboyku_websocket}.
 ```
 
-Cowboy will then switch the protocol and call `websocket_init`,
+Cowboyku will then switch the protocol and call `websocket_init`,
 followed by zero or more calls to `websocket_handle` and
 `websocket_info`. Then, when the connection is shutting down,
 `websocket_terminate` will be called.
@@ -44,7 +44,7 @@ back what it receives.
 
 ``` erlang
 -module(my_ws_handler).
--behaviour(cowboy_websocket_handler).
+-behaviour(cowboyku_websocket_handler).
 
 -export([init/3]).
 -export([websocket_init/3]).
@@ -53,7 +53,7 @@ back what it receives.
 -export([websocket_terminate/3]).
 
 init({tcp, http}, Req, Opts) ->
-    {upgrade, protocol, cowboy_websocket}.
+    {upgrade, protocol, cowboyku_websocket}.
 
 websocket_init(TransportName, Req, _Opts) ->
     erlang:start_timer(1000, self(), <<"Hello!">>),

@@ -5,7 +5,7 @@
 -export([content_types_provided/2]).
 
 init(_Transport, _Req, _Opts) ->
-	{upgrade, protocol, cowboy_rest}.
+	{upgrade, protocol, cowboyku_rest}.
 
 allowed_methods(Req, State) ->
 	{[<<"GET">>, <<"PUT">>], Req, State}.

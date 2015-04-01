@@ -28,4 +28,4 @@ all() ->
 	[eunit].
 
 eunit(_) ->
-	ok = eunit:test({application, cowboy}).
+	ok = eunit:test({application, cowboyku}).

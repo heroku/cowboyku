@@ -12,7 +12,7 @@ Nodes may or may not be identical depending on the nature of the
 system.
 
 To get started though, we only need one node that contains your own
-HTTP application, plus the dependencies that it needs, like Cowboy.
+HTTP application, plus the dependencies that it needs, like Cowboyku.
 To create our node, we need to build what is called a release. A
 release is a set of files that contain the Erlang VM plus all the
 applications required to run our node.
@@ -78,14 +78,14 @@ and change what you like in it.
 
 ``` erlang
 {application, hello_erlang, [
-    {description, "Hello world with Cowboy!"},
+    {description, "Hello world with Cowboyku!"},
     {vsn, "0.1.0"},
     {modules, []},
     {registered, [hello_erlang_sup]},
     {applications, [
         kernel,
         stdlib,
-        cowboy
+        cowboyku
     ]},
     {mod, {hello_erlang_app, []}},
     {env, []}
@@ -126,23 +126,23 @@ stop(_State) ->
     ok.
 ```
 
-That's not enough however. Since we are building a Cowboy based
-application, we also need to initialize Cowboy when we start our
+That's not enough however. Since we are building a Cowboyku based
+application, we also need to initialize Cowboyku when we start our
 application.
 
-Cowboy does nothing by default.
+Cowboyku does nothing by default.
 
-Cowboy uses Ranch for handling the connections and provides convenience
+Cowboyku uses Ranch for handling the connections and provides convenience
 functions to start Ranch listeners.
 
-The `cowboy:start_http/4` function starts a listener for HTTP connections
-using the TCP transport. The `cowboy:start_https/4` function starts a
+The `cowboyku:start_http/4` function starts a listener for HTTP connections
+using the TCP transport. The `cowboyku:start_https/4` function starts a
 listener for HTTPS connections using the SSL transport.
 
 Listeners are a group of processes that are used to accept and manage
 connections. The processes used specifically for accepting connections
 are called acceptors. The number of acceptor processes is unrelated to
-the maximum number of connections Cowboy can handle. Please refer to
+the maximum number of connections Cowboyku can handle. Please refer to
 the [Ranch guide](http://ninenines.eu/docs/en/ranch/HEAD/guide/toc)
 for in-depth information.
 
@@ -158,26 +158,26 @@ using the wildcard `_` for both the hostname and path parts
 of the URL.
 
 This is how the `hello_erlang_app:start/2` function looks like
-with Cowboy initialized.
+with Cowboyku initialized.
 
 ``` erlang
 start(_Type, _Args) ->
-    Dispatch = cowboy_router:compile([
+    Dispatch = cowboyku_router:compile([
         %% {URIHost, list({URIPath, Handler, Opts})}
         {'_', [{'_', hello_handler, []}]}
     ]),
     %% Name, NbAcceptors, TransOpts, ProtoOpts
-    cowboy:start_http(my_http_listener, 100,
+    cowboyku:start_http(my_http_listener, 100,
         [{port, 8080}],
         [{env, [{dispatch, Dispatch}]}]
     ),
     hello_erlang_sup:start_link().
 ```
 
-Do note that we told Cowboy to start listening on port 8080.
+Do note that we told Cowboyku to start listening on port 8080.
 You can change this value if needed.
 
-Our application doesn't need to start any process, as Cowboy
+Our application doesn't need to start any process, as Cowboyku
 will automatically start processes for every incoming
 connections. We are still required to have a top-level supervisor
 however, albeit a fairly small one.
@@ -198,18 +198,18 @@ init([]) ->
 
 Finally, we need to write the code for handling incoming requests.
 
-Cowboy features many kinds of handlers. For this simple example,
+Cowboyku features many kinds of handlers. For this simple example,
 we will just use the plain HTTP handler, which has three callback
 functions: `init/3`, `handle/2` and `terminate/3`. You can find more
 information about the arguments and possible return values of these
 callbacks in the
-[cowboy_http_handler function reference](http://ninenines.eu/docs/en/cowboy/HEAD/manual/cowboy_http_handler).
+[cowboy_http_handler function reference](http://ninenines.eu/docs/en/cowboy/HEAD/manual/cowboy_http_handler) (`cowboyku_http_handler` original module).
 
 Our handler will only send a friendly hello back to the client.
 
 ``` erlang
 -module(hello_handler).
--behavior(cowboy_http_handler).
+-behavior(cowboyku_http_handler).
 
 -export([init/3]).
 -export([handle/2]).
@@ -219,7 +219,7 @@ init(_Type, Req, _Opts) ->
     {ok, Req, undefined_state}.
 
 handle(Req, State) ->
-    {ok, Req2} = cowboy_req:reply(200, [
+    {ok, Req2} = cowboyku_req:reply(200, [
         {<<"content-type">>, <<"text/plain">>}
     ], <<"Hello World!">>, Req),
     {ok, Req2, State}.
@@ -231,60 +231,56 @@ terminate(_Reason, _Req, _State) ->
 The `Req` variable above is the Req object, which allows the developer
 to obtain information about the request and to perform a reply.
 Its usage is documented in the
-[cowboy_req function reference](http://ninenines.eu/docs/en/cowboy/HEAD/manual/cowboy_req).
+[cowboy_req function reference](http://ninenines.eu/docs/en/cowboy/HEAD/manual/cowboy_req) (`cowboyku_req`'s original module)
 
 The code for our application is ready, so let's build a release!
 
-First we need to download `erlang.mk`.
+First we need to download `rebar3`.
 
 ``` bash
-$ wget https://raw.github.com/extend/erlang.mk/master/erlang.mk
+$ wget https://s3.amazonaws.com/rebar3/rebar3
+$ chmod +x rebar3
 $ ls
 src/
-erlang.mk
+rebar3
 ```
 
-Then we need to create a Makefile that will include `erlang.mk`
-for building our application. We need to define the Cowboy
-dependency in the Makefile. Thankfully `erlang.mk` already
-knows where to find Cowboy as it features a package index,
-so we can just tell it to look there.
+Then we need to create a rebar.config that will include dependencies
+for building our application. We need to define the Cowboyku
+dependency in the config.
 
-``` Makefile
-PROJECT = hello_erlang
-
-DEPS = cowboy
-dep_cowboy = pkg://cowboy master
-
-include erlang.mk
+``` erlang
+{deps, [
+  {cowboyku, {git, "https://github.com/herokU/cowboyku.git", {branch, "master"}}}
+]}.
 ```
 
 Note that when creating production nodes you will most likely
-want to use a specific version of Cowboy instead of `master`,
-and properly test your release every time you update Cowboy.
+want to use a specific version of Cowboyku instead of `master`,
+and properly test your release every time you update Cowboyku.
 
-If you type `make` in a shell now, your application should build
+If you type `rebar3 compile` in a shell now, your application should build
 as expected. If you get compilation errors, double check that you
 haven't made any typo when creating the previous files.
 
 ``` bash
-$ make
+$ rebar3 compile
 ```
 
 That's not all however, as we want to create a working release.
-For that purpose, we need to create a `relx.config` file. When
-this file exists, `erlang.mk` will automatically download `relx`
-and build the release when you type `make`.
+For that purpose, we need to add a configuration value.
 
-In the `relx.config` file, we only need to tell `relx` that
+In the `rebar3.config` file, we only need to tell that
 we want the release to include the `hello_erlang` application,
 and that we want an extended start script for convenience.
-`relx` will figure out which other applications are required
-by looking into the `.app` files for dependencies.
+`rebar3`, using `relx`, will figure out which other applications
+are required by looking into the `.app` files for dependencies.
 
 ``` erlang
-{release, {hello_erlang, "1"}, [hello_erlang]}.
-{extended_start_script, true}.
+{relx, [
+  {release, {hello_erlang, "1"}, [hello_erlang]},
+  {extended_start_script, true}
+]}.
 ```
 
 The `release` value is used to specify the release name, its
@@ -293,12 +289,12 @@ version, and the applications to be included.
 We can now build and start the release.
 
 ``` bash
-$ make
-$ ./_rel/bin/hello_erlang console
+$ rebar3 release
+$ ./_build/default/rel/myrel/bin/myrel console
 ```
 
 If you then access `http://localhost:8080` using your browser,
 you should receive a nice greet!
 
 You can find many more examples in the `examples/` directory
-of the Cowboy repository.
+of the Cowboyku repository.

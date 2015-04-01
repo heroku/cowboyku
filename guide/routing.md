@@ -1,19 +1,19 @@
 Routing
 =======
 
-Cowboy does nothing by default.
+Cowboyku does nothing by default.
 
-To make Cowboy useful, you need to map URLs to Erlang modules that will
+To make Cowboyku useful, you need to map URLs to Erlang modules that will
 handle the requests. This is called routing.
 
-When Cowboy receives a request, it tries to match the requested host and
+When Cowboyku receives a request, it tries to match the requested host and
 path to the resources given in the dispatch rules. If it matches, then
 the associated Erlang code will be executed.
 
-Routing rules are given per host. Cowboy will first match on the host,
+Routing rules are given per host. Cowboyku will first match on the host,
 and then try to find a matching path.
 
-Routes need to be compiled before they can be used by Cowboy.
+Routes need to be compiled before they can be used by Cowboyku.
 
 Structure
 ---------
@@ -71,7 +71,7 @@ a `string()` or a `binary()`.
 PathMatch1 = "/".
 PathMatch2 = "/path/to/resource".
 
-HostMatch1 = "cowboy.example.org".
+HostMatch1 = "cowboyku.example.org".
 ```
 
 As you can see, all paths defined this way must start with a slash
@@ -87,9 +87,9 @@ Hosts with and without a trailing dot are equivalent for routing.
 Similarly, hosts with and without a leading dot are also equivalent.
 
 ``` erlang
-HostMatch1 = "cowboy.example.org".
-HostMatch2 = "cowboy.example.org.".
-HostMatch3 = ".cowboy.example.org".
+HostMatch1 = "cowboyku.example.org".
+HostMatch2 = "cowboyku.example.org.".
+HostMatch3 = ".cowboyku.example.org".
 ```
 
 It is possible to extract segments of the host and path and to store
@@ -108,10 +108,10 @@ HostMatch = ":subdomain.example.org".
 If these two end up matching when routing, you will end up with two
 bindings defined, `subdomain` and `name`, each containing the
 segment value where they were defined. For example, the URL
-`http://test.example.org/hats/wild_cowboy_legendary/prices` will
+`http://test.example.org/hats/wild_cowboyku_legendary/prices` will
 result in having the value `test` bound to the name `subdomain`
-and the value `wild_cowboy_legendary` bound to the name `name`.
-They can later be retrieved using `cowboy_req:binding/{2,3}`. The
+and the value `wild_cowboyku_legendary` bound to the name `name`.
+They can later be retrieved using `cowboyku_req:binding/{2,3}`. The
 binding name must be given as an atom.
 
 There is a special binding name you can use to mimic the underscore
@@ -142,7 +142,7 @@ In the case of hosts it will match anything before, in the case
 of paths anything after the previously matched segments. It is
 a special case of optional segments, in that it can have
 zero, one or many segments. You can then find the segments using
-`cowboy_req:host_info/1` and `cowboy_req:path_info/1` respectively.
+`cowboyku_req:host_info/1` and `cowboyku_req:path_info/1` respectively.
 They will be represented as a list of segments.
 
 ``` erlang
@@ -220,18 +220,18 @@ Compilation
 -----------
 
 The structure defined in this chapter needs to be compiled before it is
-passed to Cowboy. This allows Cowboy to efficiently lookup the correct
+passed to Cowboyku. This allows Cowboyku to efficiently lookup the correct
 handler to run instead of having to parse the routes repeatedly.
 
-This can be done with a simple call to `cowboy_router:compile/1`.
+This can be done with a simple call to `cowboyku_router:compile/1`.
 
 ``` erlang
-Dispatch = cowboy_router:compile([
+Dispatch = cowboyku_router:compile([
     %% {HostMatch, list({PathMatch, Handler, Opts})}
     {'_', [{'_', my_handler, []}]}
 ]),
 %% Name, NbAcceptors, TransOpts, ProtoOpts
-cowboy:start_http(my_http_listener, 100,
+cowboyku:start_http(my_http_listener, 100,
     [{port, 8080}],
     [{env, [{dispatch, Dispatch}]}]
 ).
@@ -243,13 +243,13 @@ given is incorrect.
 Live update
 -----------
 
-You can use the `cowboy:set_env/3` function for updating the dispatch
+You can use the `cowboyku:set_env/3` function for updating the dispatch
 list used by routing. This will apply to all new connections accepted
 by the listener.
 
 ``` erlang
-cowboy:set_env(my_http_listener, dispatch,
-    cowboy_router:compile(Dispatch)).
+cowboyku:set_env(my_http_listener, dispatch,
+    cowboyku_router:compile(Dispatch)).
 ```
 
 Note that you need to compile the routes before updating.

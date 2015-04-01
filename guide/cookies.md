@@ -4,7 +4,7 @@ Using cookies
 Cookies are a mechanism allowing applications to maintain
 state on top of the stateless HTTP protocol.
 
-Cowboy provides facilities for handling cookies. It is highly
+Cowboyku provides facilities for handling cookies. It is highly
 recommended to use them instead of writing your own, as the
 implementation of cookies can vary greatly between clients.
 
@@ -56,7 +56,7 @@ By default, cookies you set are defined for the session.
 
 ``` erlang
 SessionID = generate_session_id(),
-Req2 = cowboy_req:set_resp_cookie(<<"sessionid">>, SessionID, [], Req).
+Req2 = cowboyku_req:set_resp_cookie(<<"sessionid">>, SessionID, [], Req).
 ```
 
 You can also make them expire at a specific point in the
@@ -64,7 +64,7 @@ future.
 
 ``` erlang
 SessionID = generate_session_id(),
-Req2 = cowboy_req:set_resp_cookie(<<"sessionid">>, SessionID, [
+Req2 = cowboyku_req:set_resp_cookie(<<"sessionid">>, SessionID, [
     {max_age, 3600}
 ], Req).
 ```
@@ -73,7 +73,7 @@ You can delete cookies that have already been set. The value
 is ignored.
 
 ``` erlang
-Req2 = cowboy_req:set_resp_cookie(<<"sessionid">>, <<>>, [
+Req2 = cowboyku_req:set_resp_cookie(<<"sessionid">>, <<>>, [
     {max_age, 0}
 ], Req).
 ```
@@ -84,7 +84,7 @@ For example, the following cookie will be set for the domain
 `/account` and all its subdirectories.
 
 ``` erlang
-Req2 = cowboy_req:set_resp_cookie(<<"inaccount">>, <<"1">>, [
+Req2 = cowboyku_req:set_resp_cookie(<<"inaccount">>, <<"1">>, [
     {domain, "my.example.org"},
     {path, "/account"}
 ], Req).
@@ -94,7 +94,7 @@ You can restrict the cookie to secure channels, typically HTTPS.
 
 ``` erlang
 SessionID = generate_session_id(),
-Req2 = cowboy_req:set_resp_cookie(<<"sessionid">>, SessionID, [
+Req2 = cowboyku_req:set_resp_cookie(<<"sessionid">>, SessionID, [
     {secure, true}
 ], Req).
 ```
@@ -104,7 +104,7 @@ only. Such a cookie will not be available to client-side scripts.
 
 ``` erlang
 SessionID = generate_session_id(),
-Req2 = cowboy_req:set_resp_cookie(<<"sessionid">>, SessionID, [
+Req2 = cowboyku_req:set_resp_cookie(<<"sessionid">>, SessionID, [
     {http_only, true}
 ], Req).
 ```
@@ -122,19 +122,19 @@ name and value.
 You can read the value of a cookie.
 
 ``` erlang
-{CookieVal, Req2} = cowboy_req:cookie(<<"lang">>, Req).
+{CookieVal, Req2} = cowboyku_req:cookie(<<"lang">>, Req).
 ```
 
 You can also get a default value returned when the cookie
 isn't set.
 
 ``` erlang
-{CookieVal, Req2} = cowboy_req:cookie(<<"lang">>, Req, <<"fr">>).
+{CookieVal, Req2} = cowboyku_req:cookie(<<"lang">>, Req, <<"fr">>).
 ```
 
 And you can obtain all cookies at once as a list of
 key/value tuples.
 
 ``` erlang
-{AllCookies, Req2} = cowboy_req:cookies(Req).
+{AllCookies, Req2} = cowboyku_req:cookies(Req).
 ```

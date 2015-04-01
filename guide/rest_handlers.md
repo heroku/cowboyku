@@ -6,9 +6,9 @@ Purpose
 
 REST is a set of constraints that, when applied to HTTP, dictates how
 resources must behave. It is the recommended way to handle requests
-with Cowboy.
+with Cowboyku.
 
-REST is implemented in Cowboy as a protocol upgrade. Once upgraded,
+REST is implemented in Cowboyku as a protocol upgrade. Once upgraded,
 the request is handled as a state machine with many optional callbacks
 describing the resource and modifying the machine's behavior.
 
@@ -23,10 +23,10 @@ requires a protocol upgrade.
 
 ``` erlang
 init({tcp, http}, Req, Opts) ->
-    {upgrade, protocol, cowboy_rest}.
+    {upgrade, protocol, cowboyku_rest}.
 ```
 
-Cowboy will then switch to the REST protocol and start executing
+Cowboyku will then switch to the REST protocol and start executing
 the flow diagram, starting from `rest_init/2` if it's defined,
 and ending with `rest_terminate/2` also if defined.
 
@@ -53,7 +53,7 @@ All callbacks are optional. Some may become mandatory depending
 on what other defined callbacks return. The flow diagram should
 be a pretty good resource to determine which callbacks you need.
 
-When the request starts being processed, Cowboy will call the
+When the request starts being processed, Cowboyku will call the
 `rest_init/2` function if it is defined, with the Req object
 and the handler options as arguments. This function must return
 `{ok, Req, State}` where `State` is the handler's state that all
@@ -110,7 +110,7 @@ empty column means there is no default value for this callback.
 | valid_entity_length    | `true`                    |
 | variances              | `[]`                      |
 
-As you can see, Cowboy tries to move on with the request whenever
+As you can see, Cowboyku tries to move on with the request whenever
 possible by using well thought out default values.
 
 In addition to these, there can be any number of user-defined
@@ -124,8 +124,8 @@ and in the second case that we send one as HTML.
 Meta data
 ---------
 
-Cowboy will set informative meta values at various points of the
-execution. You can retrieve them using `cowboy_req:meta/{2,3}`.
+Cowboyku will set informative meta values at various points of the
+execution. You can retrieve them using `cowboyku_req:meta/{2,3}`.
 The values are defined in the following table.
 
 | Meta key   | Details                                              |
@@ -140,7 +140,7 @@ request that used a method other than HEAD or GET.
 Response headers
 ----------------
 
-Cowboy will set response headers automatically over the execution
+Cowboyku will set response headers automatically over the execution
 of the REST code. They are listed in the following table.
 
 | Header name      | Details                                            |

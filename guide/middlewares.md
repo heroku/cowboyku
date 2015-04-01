@@ -4,7 +4,7 @@ Middlewares
 Purpose
 -------
 
-Cowboy delegates the request processing to middleware components.
+Cowboyku delegates the request processing to middleware components.
 By default, two middlewares are defined, for the routing and handling
 of the request, as is detailed in most of this guide.
 
@@ -12,14 +12,14 @@ Middlewares give you complete control over how requests are to be
 processed. You can add your own middlewares to the mix or completely
 change the chain of middlewares as needed.
 
-Cowboy will execute all middlewares in the given order, unless one
+Cowboyku will execute all middlewares in the given order, unless one
 of them decides to stop processing.
 
 Usage
 -----
 
 Middlewares only need to implement a single callback: `execute/2`.
-It is defined in the `cowboy_middleware` behavior.
+It is defined in the `cowboyku_middleware` behavior.
 
 This callback has two arguments. The first is the `Req` object.
 The second is the environment.
@@ -34,7 +34,7 @@ Of note is that when hibernating, processing will resume on the given
 MFA, discarding all previous stacktrace. Make sure you keep the `Req`
 and `Env` in the arguments of this MFA for later use.
 
-If an error happens during middleware processing, Cowboy will not try
+If an error happens during middleware processing, Cowboyku will not try
 to send an error back to the socket, the process will just crash. It
 is up to the middleware to make sure that a reply is sent if something
 goes wrong.
@@ -52,13 +52,13 @@ Two values in the environment are reserved:
  *  `result` contains the result of the processing
 
 The `listener` value is always defined. The `result` value can be
-set by any middleware. If set to anything other than `ok`, Cowboy
+set by any middleware. If set to anything other than `ok`, Cowboyku
 will not process any subsequent requests on this connection.
 
-The middlewares that come with Cowboy may define or require other
+The middlewares that come with Cowboyku may define or require other
 environment values to perform.
 
-You can update the environment by calling the `cowboy:set_env/3`
+You can update the environment by calling the `cowboyku:set_env/3`
 convenience function, adding or replacing a value in the environment.
 
 Routing middleware

@@ -4,7 +4,7 @@
 		to_text/2, from_text/2]).
 
 init(_Transport, _Req, _Opts) ->
-	{upgrade, protocol, cowboy_rest}.
+	{upgrade, protocol, cowboyku_rest}.
 
 rest_init(Req, [Forbidden]) ->
 	{ok, Req, Forbidden}.
@@ -27,5 +27,5 @@ to_text(Req, State) ->
 	{<<"This is REST!">>, Req, State}.
 
 from_text(Req, State) ->
-	{Path, Req2} = cowboy_req:path(Req),
+	{Path, Req2} = cowboyku_req:path(Req),
 	{{true, Path}, Req2, State}.

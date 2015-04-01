@@ -34,14 +34,14 @@ from the application `my_app`'s priv directory whenever the
 path `/` is accessed.
 
 ``` erlang
-{"/", cowboy_static, {priv_file, my_app, "static/index.html"}}
+{"/", cowboyku_static, {priv_file, my_app, "static/index.html"}}
 ```
 
 You can also specify the absolute path to a file, or the
 path to the file relative to the current directory.
 
 ``` erlang
-{"/", cowboy_static, {file, "/var/www/index.html"}}
+{"/", cowboyku_static, {file, "/var/www/index.html"}}
 ```
 
 Serve all files from a directory
@@ -62,29 +62,29 @@ The following rule will serve any file found in the application
 whenever the requested path begins with `/assets/`.
 
 ``` erlang
-{"/assets/[...]", cowboy_static, {priv_dir, my_app, "static/assets"}}
+{"/assets/[...]", cowboyku_static, {priv_dir, my_app, "static/assets"}}
 ```
 
 You can also specify the absolute path to the directory or
 set it relative to the current directory.
 
 ``` erlang
-{"/assets/[...]", cowboy_static, {dir, "/var/www/assets"}}
+{"/assets/[...]", cowboyku_static, {dir, "/var/www/assets"}}
 ```
 
 Customize the mimetype detection
 --------------------------------
 
-By default, Cowboy will attempt to recognize the mimetype
+By default, Cowboyku will attempt to recognize the mimetype
 of your static files by looking at the extension.
 
 You can override the function that figures out the mimetype
-of the static files. It can be useful when Cowboy is missing
+of the static files. It can be useful when Cowboyku is missing
 a mimetype you need to handle, or when you want to reduce
 the list to make lookups faster. You can also give a
 hard-coded mimetype that will be used unconditionally.
 
-Cowboy comes with two functions built-in. The default
+Cowboyku comes with two functions built-in. The default
 function only handles common file types used when building
 Web applications. The other function is an extensive list
 of hundreds of mimetypes that should cover almost any need
@@ -95,7 +95,7 @@ anything, as it is the default. If you insist, though, the
 following will do the job.
 
 ``` erlang
-{"/assets/[...]", cowboy_static, {priv_dir, my_app, "static/assets",
+{"/assets/[...]", cowboyku_static, {priv_dir, my_app, "static/assets",
     [{mimetypes, cow_mimetypes, web}]}}
 ```
 
@@ -107,7 +107,7 @@ To use the function that will detect almost any mimetype,
 the following configuration will do.
 
 ``` erlang
-{"/assets/[...]", cowboy_static, {priv_dir, my_app, "static/assets",
+{"/assets/[...]", cowboyku_static, {priv_dir, my_app, "static/assets",
     [{mimetypes, cow_mimetypes, all}]}}
 ```
 
@@ -116,7 +116,7 @@ expects a module and a function name, so you can use any
 of your own functions instead.
 
 ``` erlang
-{"/assets/[...]", cowboy_static, {priv_dir, my_app, "static/assets",
+{"/assets/[...]", cowboyku_static, {priv_dir, my_app, "static/assets",
     [{mimetypes, Module, Function}]}}
 ```
 
@@ -137,7 +137,7 @@ This is especially useful in combination with the `file`
 and `priv_file` options as it avoids needless computation.
 
 ``` erlang
-{"/", cowboy_static, {priv_file, my_app, "static/index.html",
+{"/", cowboyku_static, {priv_file, my_app, "static/index.html",
     [{mimetypes, {<<"text">>, <<"html">>, []}}]}}
 ```
 
@@ -154,7 +154,7 @@ different etag on each server.
 You can however change the way the etag is calculated.
 
 ``` erlang
-{"/assets/[...]", cowboy_static, {priv_dir, my_app, "static/assets",
+{"/assets/[...]", cowboyku_static, {priv_dir, my_app, "static/assets",
     [{etag, Module, Function}]}}
 ```
 
@@ -167,6 +167,6 @@ all your servers.
 You can also completely disable etag handling.
 
 ``` erlang
-{"/assets/[...]", cowboy_static, {priv_dir, my_app, "static/assets",
+{"/assets/[...]", cowboyku_static, {priv_dir, my_app, "static/assets",
     [{etag, false}]}}
 ```

@@ -1,1 +1,1 @@
-{incl_app, cowboy, details}.
+{incl_app, cowboyku, details}.

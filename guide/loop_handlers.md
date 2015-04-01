@@ -42,7 +42,7 @@ this message.
 
 ``` erlang
 -module(my_loop_handler).
--behaviour(cowboy_loop_handler).
+-behaviour(cowboyku_loop_handler).
 
 -export([init/3]).
 -export([info/3]).
@@ -52,7 +52,7 @@ init({tcp, http}, Req, Opts) ->
     {loop, Req, undefined_state, 60000, hibernate}.
 
 info({reply, Body}, Req, State) ->
-    {ok, Req2} = cowboy_req:reply(200, [], Body, Req),
+    {ok, Req2} = cowboyku_req:reply(200, [], Body, Req),
     {ok, Req2, State};
 info(Message, Req, State) ->
     {loop, Req, State, hibernate}.

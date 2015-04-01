@@ -7,7 +7,7 @@
 -export([last_modified/2]).
 
 init(_Transport, _Req, _Opts) ->
-	{upgrade, protocol, cowboy_rest}.
+	{upgrade, protocol, cowboyku_rest}.
 
 content_types_provided(Req, State) ->
 	{[{{<<"text">>, <<"plain">>, []}, get_text_plain}], Req, State}.
