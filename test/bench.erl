@@ -40,3 +40,28 @@ rand_letter() ->
         _ ->
             random:uniform($Z - $A) + $A
     end.
+
+%% 17> erlang:garbage_collect(), bench:bench(fun(X) -> cowboyku_protocol:match_eol(X, 0) end, bench:make_strs(10000, 1000)).
+%% 1.07151
+%% 18> erlang:garbage_collect(), bench:bench(fun(X) -> binary:match(X, <<$\n>>) end, bench:make_strs(10000, 1000)).
+%% 0.77457
+%% 19> erlang:garbage_collect(), bench:bench(fun(X) -> binary:match(X, <<$\n>>) end, bench:make_strs(10000, 4000)).
+%% 2.28912
+%% 20> erlang:garbage_collect(), bench:bench(fun(X) -> cowboyku_protocol:match_eol(X, 0) end, bench:make_strs(10000, 4000)).
+%% 3.82898
+
+rand_str(Len) ->
+    End =
+        case random:uniform(2) of
+            1 ->
+                $\n;
+            _ ->
+                $n
+        end,
+    iolist_to_binary([rand_letter()
+                      || _ <- lists:seq(1, Len)]
+                     ++ [End]).
+
+make_strs(N, L) ->
+    [rand_str(L)
+     || _ <- lists:seq(1, N)].
