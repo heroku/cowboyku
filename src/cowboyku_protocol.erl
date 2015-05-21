@@ -184,9 +184,9 @@ parse_request(Buffer, State=#state{max_request_line_length=MaxLength,
 			error_terminate(414, State);
 		nomatch ->
 			wait_request(Buffer, State, ReqEmpty);
-		1 when ReqEmpty =:= MaxEmpty ->
+		{1, _} when ReqEmpty =:= MaxEmpty ->
 			error_terminate(400, State);
-		1 ->
+		{1, _} ->
 			<< _:16, Rest/binary >> = Buffer,
 			parse_request(Rest, State, ReqEmpty + 1);
 		_ ->
