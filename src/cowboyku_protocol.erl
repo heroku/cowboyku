@@ -352,13 +352,13 @@ parse_hd_before_value(<< $\t, Rest/bits >>, S, M, P, Q, V, H, N) ->
 	parse_hd_before_value(Rest, S, M, P, Q, V, H, N);
 parse_hd_before_value(Buffer, State=#state{
 		max_header_value_length=MaxLength}, M, P, Q, V, H, N) ->
-	case binary:match(Buffer, <<$\n>>) of
+	case binary:match(Buffer, <<"\r\n">>) of
 		nomatch when byte_size(Buffer) > MaxLength ->
 			error_terminate(400, State);
 		nomatch ->
 			wait_hd_before_value(Buffer, State, M, P, Q, V, H, N);
-		_ ->
-			parse_hd_value(Buffer, State, M, P, Q, V, H, N, <<>>)
+		{_Pos, _} ->
+			parse_hd_value(Buffer, State, M, P, Q, V, H, N, [])
 	end.
 
 %% We completely ignore the first argument which is always
@@ -387,7 +387,9 @@ wait_hd_value_nl(_, State=#state{
 		{ok, << C, Data/bits >>} when C =:= $\s; C =:= $\t  ->
 			parse_hd_value(Data, State, M, P, Q, V, Headers, Name, SoFar);
 		{ok, Data} ->
-			parse_header(Data, State, M, P, Q, V, [{Name, SoFar}|Headers]);
+			parse_header(Data, State, M, P, Q, V, [{Name,
+                                                    iolist_to_binary(lists:reverse(SoFar))}
+                                                   |Headers]);
 		{error, timeout} ->
 			error_terminate(408, State);
 		{error, _} ->
@@ -401,14 +403,16 @@ parse_hd_value(<< $\r, Rest/bits >>, S, M, P, Q, V, Headers, Name, SoFar) ->
 		<< $\n, C, Rest2/bits >> when C =:= $\s; C =:= $\t ->
 			parse_hd_value(Rest2, S, M, P, Q, V, Headers, Name, SoFar);
 		<< $\n, Rest2/bits >> ->
-			parse_header(Rest2, S, M, P, Q, V, [{Name, SoFar}|Headers]);
+			parse_header(Rest2, S, M, P, Q, V, [{Name,
+                                                 iolist_to_binary(lists:reverse(SoFar))}
+                                                |Headers]);
 		_ ->
 			error_terminate(400, S)
 	end;
 parse_hd_value(<< C, Rest/bits >>, S, M, P, Q, V, H, N, SoFar) ->
-	parse_hd_value(Rest, S, M, P, Q, V, H, N, << SoFar/binary, C >>);
+	parse_hd_value(Rest, S, M, P, Q, V, H, N, [C | SoFar]);
 parse_hd_value(<<>>, State=#state{max_header_value_length=MaxLength},
-		_, _, _, _, _, _, SoFar) when byte_size(SoFar) > MaxLength ->
+		_, _, _, _, _, _, SoFar) when length(SoFar) > MaxLength ->
 	error_terminate(400, State);
 parse_hd_value(<<>>, S, M, P, Q, V, H, N, SoFar) ->
         wait_hd_value(<<>>, S, M, P, Q, V, H, N, SoFar);
