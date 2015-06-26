@@ -1,6 +1,10 @@
 CHANGELOG
 =========
 
+## Cowboyku 1.0.1
+
+- Added proper handling for internal error code 499 (Client disconnected)
+
 ## Cowboyku 1.0.0
 
 - Renamed all modules and tests for a proper fork.
