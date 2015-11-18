@@ -179,26 +179,19 @@ parse_request(<< $\n, _/binary >>, State, _) ->
 %% reading from the socket and eventually crashing.
 parse_request(Buffer, State=#state{max_request_line_length=MaxLength,
 		max_empty_lines=MaxEmpty}, ReqEmpty) ->
-	case match_eol(Buffer, 0) of
+	case binary:match(Buffer, <<"\n">>) of
 		nomatch when byte_size(Buffer) > MaxLength ->
 			error_terminate(414, State);
 		nomatch ->
 			wait_request(Buffer, State, ReqEmpty);
-		1 when ReqEmpty =:= MaxEmpty ->
+		{1, _} when ReqEmpty =:= MaxEmpty ->
 			error_terminate(400, State);
-		1 ->
+		{1, _} ->
 			<< _:16, Rest/binary >> = Buffer,
 			parse_request(Rest, State, ReqEmpty + 1);
 		_ ->
 			parse_method(Buffer, State, <<>>)
 	end.
-
-match_eol(<< $\n, _/bits >>, N) ->
-	N;
-match_eol(<< _, Rest/bits >>, N) ->
-	match_eol(Rest, N + 1);
-match_eol(_, _) ->
-	nomatch.
 
 parse_method(<< C, Rest/bits >>, State, SoFar) ->
 	case C of
@@ -359,7 +352,7 @@ parse_hd_before_value(<< $\t, Rest/bits >>, S, M, P, Q, V, H, N) ->
 	parse_hd_before_value(Rest, S, M, P, Q, V, H, N);
 parse_hd_before_value(Buffer, State=#state{
 		max_header_value_length=MaxLength}, M, P, Q, V, H, N) ->
-	case match_eol(Buffer, 0) of
+	case binary:match(Buffer, <<"\n">>) of
 		nomatch when byte_size(Buffer) > MaxLength ->
 			error_terminate(400, State);
 		nomatch ->
