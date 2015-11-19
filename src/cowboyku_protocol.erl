@@ -282,7 +282,7 @@ parse_header(<< $\r, $\n, Rest/bits >>, S, M, P, Q, V, Headers) ->
 	request(Rest, S, M, P, Q, V, lists:reverse(Headers));
 parse_header(Buffer, State=#state{max_header_name_length=MaxLength},
 		M, P, Q, V, H) ->
-	case match_colon(Buffer, 0) of
+	case binary:match(Buffer, <<":">>) of
 		nomatch when byte_size(Buffer) > MaxLength ->
 			error_terminate(400, State);
 		nomatch ->
@@ -290,13 +290,6 @@ parse_header(Buffer, State=#state{max_header_name_length=MaxLength},
 		_ ->
 			parse_hd_name(Buffer, State, M, P, Q, V, H, <<>>)
 	end.
-
-match_colon(<< $:, _/bits >>, N) ->
-	N;
-match_colon(<< _, Rest/bits >>, N) ->
-	match_colon(Rest, N + 1);
-match_colon(_, _) ->
-	nomatch.
 
 %% I know, this isn't exactly pretty. But this is the most critical
 %% code path and as such needs to be optimized to death.
