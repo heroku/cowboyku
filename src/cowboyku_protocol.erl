@@ -48,6 +48,8 @@
 %% an application as it already supervises them under the listener supervisor.
 -module(cowboyku_protocol).
 
+-compile([native]).
+
 %% API.
 -export([start_link/4]).
 

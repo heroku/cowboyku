@@ -15,6 +15,8 @@
 %% @doc Binary string manipulation.
 -module(cowboyku_bstr).
 
+-compile([native]).
+
 %% Binary strings.
 -export([capitalize_token/1]).
 -export([to_lower/1]).
@@ -33,13 +35,10 @@
 %% badly implemented clients.
 -spec capitalize_token(B) -> B when B::binary().
 capitalize_token(B) ->
-    capitalize_token(B, undefined, []).
+    capitalize_token(B, $-, []).
 
 capitalize_token(<<>>, _, Acc) ->
     iolist_to_binary(lists:reverse(Acc));
-capitalize_token(<<C, B/binary>>, undefined, Acc) ->
-    C1 = char_to_upper(C),
-    capitalize_token(B, C1, [C1|Acc]);
 capitalize_token(<<C, B/binary>>, $-, Acc) ->
     C1 = char_to_upper(C),
     capitalize_token(B, C1, [C1|Acc]);
