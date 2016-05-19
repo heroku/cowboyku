@@ -49,7 +49,10 @@
 -module(cowboyku_protocol).
 
 %% API.
--export([start_link/4]).
+-export([
+         become/4,
+         start_link/4
+        ]).
 
 %% Internal.
 -export([init/4]).
@@ -110,27 +113,37 @@ get_value(Key, Opts, Default) ->
 %% @private
 -spec init(ranch:ref(), inet:socket(), module(), opts()) -> ok.
 init(Ref, Socket, Transport, Opts) ->
-	Compress = get_value(compress, Opts, false),
-	MaxEmptyLines = get_value(max_empty_lines, Opts, 5),
-	MaxHeaderNameLength = get_value(max_header_name_length, Opts, 64),
-	MaxHeaderValueLength = get_value(max_header_value_length, Opts, 4096),
-	MaxHeaders = get_value(max_headers, Opts, 100),
-	MaxKeepalive = get_value(max_keepalive, Opts, 100),
-	MaxRequestLineLength = get_value(max_request_line_length, Opts, 4096),
-	Middlewares = get_value(middlewares, Opts, [cowboyku_router, cowboyku_handler]),
-	Env = [{listener, Ref}|get_value(env, Opts, [])],
-	OnRequest = get_value(onrequest, Opts, undefined),
-	OnResponse = get_value(onresponse, Opts, undefined),
-	Timeout = get_value(timeout, Opts, 5000),
-	ok = ranch:accept_ack(Ref),
-	wait_request(<<>>, #state{socket=Socket, transport=Transport,
-		middlewares=Middlewares, compress=Compress, env=Env,
-		max_empty_lines=MaxEmptyLines, max_keepalive=MaxKeepalive,
-		max_request_line_length=MaxRequestLineLength,
-		max_header_name_length=MaxHeaderNameLength,
-		max_header_value_length=MaxHeaderValueLength, max_headers=MaxHeaders,
-		onrequest=OnRequest, onresponse=OnResponse,
-		timeout=Timeout, until=until(Timeout)}, 0).
+    ok = ranch:accept_ack(Ref),
+    become(Ref, Socket, Transport, Opts).
+
+-spec become(
+        Ref :: ranch:ref(),
+        Socket :: inet:socket(),
+        Transport :: module(),
+        Opts :: [proplists:property()]) ->
+                    any().
+become(Ref, Socket, Transport, Opts) ->
+    Compress = get_value(compress, Opts, false),
+    MaxEmptyLines = get_value(max_empty_lines, Opts, 5),
+    MaxHeaderNameLength = get_value(max_header_name_length, Opts, 64),
+    MaxHeaderValueLength = get_value(max_header_value_length, Opts, 4096),
+    MaxHeaders = get_value(max_headers, Opts, 100),
+    MaxKeepalive = get_value(max_keepalive, Opts, 100),
+    MaxRequestLineLength = get_value(max_request_line_length, Opts, 4096),
+    Middlewares = get_value(middlewares, Opts, [cowboyku_router, cowboyku_handler]),
+    Env = [{listener, Ref}|get_value(env, Opts, [])],
+    OnRequest = get_value(onrequest, Opts, undefined),
+    OnResponse = get_value(onresponse, Opts, undefined),
+    Timeout = get_value(timeout, Opts, 5000),
+    wait_request(<<>>,
+                 #state{socket=Socket, transport=Transport,
+                        middlewares=Middlewares, compress=Compress, env=Env,
+                        max_empty_lines=MaxEmptyLines, max_keepalive=MaxKeepalive,
+                        max_request_line_length=MaxRequestLineLength,
+                        max_header_name_length=MaxHeaderNameLength,
+                        max_header_value_length=MaxHeaderValueLength, max_headers=MaxHeaders,
+                        onrequest=OnRequest, onresponse=OnResponse,
+                        timeout=Timeout, until=until(Timeout)}, 0).
 
 -spec until(timeout()) -> non_neg_integer() | infinity.
 until(infinity) ->
