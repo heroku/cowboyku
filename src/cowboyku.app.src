@@ -14,7 +14,7 @@
 
 {application, cowboyku, [
 	{description, "Small, fast, modular HTTP server for proxies."},
-	{vsn, "1.0.1"},
+	{vsn, "git"},
 	{modules, []},
 	{registered, [cowboyku_clock, cowboyku_sup]},
 	{applications, [
