@@ -15,8 +15,6 @@
 %% @doc Binary string manipulation.
 -module(cowboyku_bstr).
 
--compile([native]).
-
 %% Binary strings.
 -export([capitalize_token/1]).
 -export([to_lower/1]).

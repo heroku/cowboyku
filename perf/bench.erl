@@ -40,3 +40,27 @@ rand_letter() ->
         _ ->
             random:uniform($Z - $A) + $A
     end.
+
+make_header_pairs() ->
+    HeadersCt = random:uniform(3) + 2,
+    [begin
+         ValLen = random:uniform(10) + 10,
+         {make_header(), crypto:rand_bytes(ValLen)}
+     end
+     || _ <- lists:seq(1, HeadersCt)].
+
+
+make_requests(N) ->
+    ReqData =
+        [{make_header_pairs(),
+          crypto:rand_bytes(random:uniform(200)+100)}
+         || _ <- lists:seq(1, N)],
+    {Time, _} =
+        timer:tc(fun() ->
+                         [{ok, 200, _, _} =
+                              hackney:request(post, "http://localhost:8080/",
+                                              Headers,
+                                              <<>>, [])
+                          || {Headers, _Body} <- ReqData]
+                 end),
+    io:format("total time for ~p requests: ~p ms~n", [N, Time/1000]).
