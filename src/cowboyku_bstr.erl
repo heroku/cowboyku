@@ -31,12 +31,12 @@ init() ->
         {error, bad_name} ->
             case code:which(?MODULE) of
                 Filename when is_list(Filename) ->
-                    SoName = filename:join([filename:dirname(Filename),"../priv", "cowboyku_bstr"]);
+                    SoName = filename:join([filename:dirname(Filename),"../priv", "cowboyku"]);
                 _ ->
-                    SoName = filename:join("../priv", "cowboyku_bstr")
+                    SoName = filename:join("../priv", "cowboyku")
             end;
          Dir ->
-            SoName = filename:join(Dir, "cowboyku_bstr")
+            SoName = filename:join(Dir, "cowboyku")
     end,
     erlang:load_nif(SoName, 0).
 
