@@ -24,6 +24,23 @@
 -export([char_to_lower/1]).
 -export([char_to_upper/1]).
 
+-on_load(init/0).
+
+init() ->
+    case code:priv_dir(cowboyku_bstr) of
+        {error, bad_name} ->
+            case code:which(?MODULE) of
+                Filename when is_list(Filename) ->
+                    SoName = filename:join([filename:dirname(Filename),"../priv", "cowboyku_bstr"]);
+                _ ->
+                    SoName = filename:join("../priv", "cowboyku_bstr")
+            end;
+         Dir ->
+            SoName = filename:join(Dir, "cowboyku_bstr")
+    end,
+    erlang:load_nif(SoName, 0).
+
+
 %% @doc Capitalize a token.
 %%
 %% The first letter and all letters after a dash are capitalized.
@@ -33,16 +50,7 @@
 %% badly implemented clients.
 -spec capitalize_token(B) -> B when B::binary().
 capitalize_token(B) ->
-    capitalize_token(B, $-, []).
-
-capitalize_token(<<>>, _, Acc) ->
-    iolist_to_binary(lists:reverse(Acc));
-capitalize_token(<<C, B/binary>>, $-, Acc) ->
-    C1 = char_to_upper(C),
-    capitalize_token(B, C1, [C1|Acc]);
-capitalize_token(<<C, B/binary>>, _, Acc) ->
-    C1 = char_to_lower(C),
-    capitalize_token(B, C1, [C1|Acc]).
+    erlang:nif_error({error, not_loaded}).
 
 %% @doc Convert a binary string to lowercase.
 -spec to_lower(B) -> B when B::binary().
