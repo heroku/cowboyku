@@ -49,7 +49,7 @@ init() ->
 %% are case insensitive, and it is only provided for use with eventual
 %% badly implemented clients.
 -spec capitalize_token(B) -> B when B::binary().
-capitalize_token(B) ->
+capitalize_token(_Bin) ->
     erlang:nif_error({error, not_loaded}).
 
 %% @doc Convert a binary string to lowercase.
