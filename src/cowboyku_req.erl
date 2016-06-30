@@ -535,7 +535,7 @@ meta(Name, Req) ->
 -spec meta(atom(), Req, any()) -> {any(), Req} when Req::req().
 meta(Name, Req, Default) ->
 	case maps:find(Name, Req#http_req.meta) of
-		{ok, {Name, Value}} -> {Value, Req};
+		{ok, Value} -> {Value, Req};
 		error -> {Default, Req}
 	end.
 
