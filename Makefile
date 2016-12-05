@@ -1,31 +1,33 @@
-# See LICENSE for licensing information.
+.PHONY: test clean all
 
-PROJECT = cowboyku
+REBAR3_URL=https://s3.amazonaws.com/rebar3/rebar3
 
-# Options.
+# If there is a rebar in the current directory, use it
+ifeq ($(wildcard rebar3),rebar3)
+REBAR3 = $(CURDIR)/rebar3
+endif
 
-COMPILE_FIRST = cowboyku_middleware cowboyku_sub_protocol
-CT_SUITES = eunit http spdy ws
-PLT_APPS = crypto public_key ssl
+# Fallback to rebar on PATH
+REBAR3 ?= $(shell which rebar3)
 
-# Dependencies.
+# And finally, prep to download rebar if all else fails
+ifeq ($(REBAR3),)
+REBAR3 = $(CURDIR)/rebar3
+endif
 
-DEPS = cowlib ranch
-dep_cowlib = pkg://cowlib 0.4.0
-dep_ranch = pkg://ranch 0.9.0
+clean: $(REBAR3)
+	@$(REBAR3) clean
+	rm -rf _build
 
-TEST_DEPS = ct_helper gun
-dep_ct_helper = https://github.com/extend/ct_helper.git master
-dep_gun = pkg://gun master
+all: $(REBAR3)
+	@$(REBAR3) do clean, compile, eunit, ct, dialyzer
 
-# Standard targets.
+test: $(REBAR3)
+	@$(REBAR3) do eunit, ct
 
-include erlang.mk
+rel: all
+	@$(REBAR3) release
 
-# Extra targets.
-
-.PHONY: autobahn
-
-autobahn: clean clean-deps deps app build-tests
-	@mkdir -p logs/
-	@$(CT_RUN) -suite autobahn_SUITE
+$(REBAR3):
+	curl -Lo rebar3 $(REBAR3_URL) || wget $(REBAR3_URL)
+	chmod a+x rebar3

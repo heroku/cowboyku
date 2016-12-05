@@ -14,6 +14,7 @@
 
 -module(spdy_SUITE).
 
+-include_lib("eunit/include/eunit.hrl").
 -include_lib("common_test/include/ct.hrl").
 
 %% ct.
@@ -73,6 +74,7 @@ init_per_group(Name, Config) ->
 	{ok, _} = cowboyku:start_spdy(Name, 100, Opts ++ [{port, 0}], [
 		{env, [{dispatch, init_dispatch(Config)}]}
 	]),
+  timer:sleep(500),
 	Port = ranch:get_port(Name),
 	[{port, Port}|Config].
 
@@ -101,9 +103,13 @@ quick_get(Pid, Host, Path) ->
 	receive
 		{'DOWN', MRef, _, _, Reason} ->
 			error(Reason);
-		{gun_response, Pid, StreamRef, IsFin,
-				<< Status:3/binary, _/bits >>, Headers} ->
-			{IsFin, binary_to_integer(Status), Headers}
+    {_, Pid, StreamRef, IsFin,
+     << Status:3/binary, _/bits >>} ->
+          {IsFin, binary_to_integer(Status), []};
+    {_, Pid, StreamRef, IsFin, Status} ->
+          {IsFin, Status, []};
+		{_, Pid, StreamRef, IsFin, Status, Headers} ->
+			{IsFin, Status, Headers}
 	after 1000 ->
 		error(timeout)
 	end.
@@ -121,10 +127,18 @@ check_status(Config) ->
 		{400, fin, "localhost", "bad-path"},
 		{404, fin, "localhost", "/this/path/does/not/exist"}
 	],
-	_ = [{Status, Fin, Host, Path} = begin
-		{IsFin, Ret, _} = quick_get(Pid, Host, Path),
-		{Ret, IsFin, Host, Path}
-	end || {Status, Fin, Host, Path} <- Tests],
+	_ = [begin
+           {IsFin, Ret, _} = quick_get(Pid, Host, Path),
+           case quick_get(Pid, Host, Path) of
+               {Fin, Status, _} ->
+                   "Yay!";
+               _ ->
+                   ct:pal("~s~s falied", [Host, Path]),
+                   ct:pal("Expected Fin: ~p, Got: ~p", [Fin,IsFin]),
+                   ct:pal("  and Status: ~p, Got: ~p", [Status, Ret]),
+                   ?assertEqual(Status, Ret)
+           end
+       end || {Status, Fin, Host, Path} <- Tests],
 	gun:close(Pid).
 
 echo_body(Config) ->
@@ -139,8 +153,9 @@ echo_body(Config) ->
 	receive
 		{'DOWN', MRef, _, _, Reason} ->
 			error(Reason);
-		{gun_response, Pid, StreamRef, nofin, << "200", _/bits >>, _} ->
-			ok
+    {gun_response, Pid, StreamRef, nofin, 200, _} -> ok;
+    {gun_response, Pid, StreamRef, nofin, << "200", _/bits >>, _} ->
+      ok
 	after 1000 ->
 		error(response_timeout)
 	end,
@@ -168,6 +183,7 @@ echo_body_multi(Config) ->
 	receive
 		{'DOWN', MRef, _, _, Reason} ->
 			error(Reason);
+    {gun_response, Pid, StreamRef, nofin, 200, _} -> ok;
 		{gun_response, Pid, StreamRef, nofin, << "200", _/bits >>, _} ->
 			ok
 	after 1000 ->

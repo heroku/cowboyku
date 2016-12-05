@@ -39,6 +39,9 @@
 %% track of the request and response state. Doing so allows Cowboyku to do
 %% some lazy evaluation and cache results when possible.
 -module(cowboyku_req).
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
 
 -define(POLL_INTERVAL, 1000).
 
@@ -438,7 +441,7 @@ parse_header(Name = <<"cookie">>, Req, Default) ->
 parse_header(Name = <<"expect">>, Req, Default) ->
 	parse_header(Name, Req, Default,
 		fun (Value) ->
-			cowboyku_http:nonempty_list(Value, fun cowboyku_http:expectation/2)
+			cowboyku_http:list(Value, fun cowboyku_http:expectation/2)
 		end);
 parse_header(Name, Req, Default)
 		when Name =:= <<"if-match">>;
@@ -1612,5 +1615,11 @@ merge_headers_test_() ->
 		  {<<"server">>,<<"Cowboy">>}]}
 	],
 	[fun() -> Res = merge_headers(L,R) end || {L, R, Res} <- Tests].
+
+parse_expect_headers_test() ->
+    Req = #http_req{headers=[{<<"expect">>,<<"">>}]},
+    {ok, "", NewReq} = parse_header(<<"expect">>, Req),
+
+    ok.
 
 -endif.

@@ -10,4 +10,5 @@ doc/edoc-info
 ebin
 logs
 relx
-test/*.beam
+*.beam
+_build

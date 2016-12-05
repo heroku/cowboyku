@@ -225,6 +225,7 @@ init_per_group(http, Config) ->
 		{max_keepalive, 50},
 		{timeout, 500}
 	]),
+  timer:sleep(1000),
 	Port = ranch:get_port(http),
 	{ok, Client} = cowboyku_client:init([]),
 	[{scheme, <<"http">>}, {port, Port}, {opts, []},
@@ -241,6 +242,7 @@ init_per_group(https, Config) ->
 		{max_keepalive, 50},
 		{timeout, 500}
 	]),
+  timer:sleep(500),
 	Port = ranch:get_port(https),
 	{ok, Client} = cowboyku_client:init(Opts),
 	[{scheme, <<"https">>}, {port, Port}, {opts, Opts},
@@ -253,6 +255,7 @@ init_per_group(http_compress, Config) ->
 		{max_keepalive, 50},
 		{timeout, 500}
 	]),
+  timer:sleep(500),
 	Port = ranch:get_port(http_compress),
 	{ok, Client} = cowboyku_client:init([]),
 	[{scheme, <<"http">>}, {port, Port}, {opts, []},
@@ -270,6 +273,7 @@ init_per_group(https_compress, Config) ->
 		{max_keepalive, 50},
 		{timeout, 500}
 	]),
+  timer:sleep(500),
 	Port = ranch:get_port(https_compress),
 	{ok, Client} = cowboyku_client:init(Opts),
 	[{scheme, <<"https">>}, {port, Port}, {opts, Opts},

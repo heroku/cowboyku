@@ -1,0 +1,8 @@
+[{<<"cowlib">>,
+  {git,"git://github.com/extend/cowlib.git",
+       {ref,"63298e8e160031a70efff86a1acde7e7db1fcda6"}},
+  0},
+ {<<"ranch">>,
+  {git,"git://github.com/extend/ranch.git",
+       {ref,"5df1f222f94e08abdcab7084f5e13027143cc222"}},
+  0}].
