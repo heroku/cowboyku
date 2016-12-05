@@ -29,7 +29,11 @@
 %% ct.
 
 all() ->
-	[{group, autobahn}].
+    case os:getenv("AUTOBAHN") of
+        false -> [];
+        _ ->
+            [{group, autobahn}]
+    end.
 
 groups() ->
 	BaseTests = [run_tests],
@@ -49,7 +53,7 @@ init_per_suite(Config) ->
 	os:putenv("AB_TESTS_PRIV", ?config(priv_dir, Config)),
 	BinPath = filename:join(?config(data_dir, Config), "test.py"),
 	Stdout = os:cmd(BinPath ++ " setup"),
-	ct:log("~s~n", [Stdout]),
+	ct:pal("Setup: ~s~n", [Stdout]),
 	case string:str(Stdout, "AB-TESTS-SETUP-OK") of
 		0 -> erlang:error(failed);
 		_ -> [{env_path, EnvPath},{bin_path,BinPath}|Config]
