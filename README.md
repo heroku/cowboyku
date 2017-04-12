@@ -6,7 +6,7 @@ Cowboyku is a fork of that server used in conjunction with
 
 It is functionally equivalent to Cowboy 0.10.0, with custom patches added in to
 function properly as a proxy's web server (Proxies and HTTP servers have
-slitghly varying specifications) and parser.
+slightly varying specifications) and parser.
 
 Cowboyku is not expected to be used standalone. It is rather a fork used so
 that both Cowboy and Vegur might be used from within the same virtual machine
