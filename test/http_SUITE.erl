@@ -839,19 +839,19 @@ onresponse_hook(_, Headers, _, Req) ->
 
 parse_host(Config) ->
 	Tests = [
-		{<<"example.org\n8080">>, <<"example.org:8080">>},
-		{<<"example.org\n80">>, <<"example.org">>},
-		{<<"192.0.2.1\n8080">>, <<"192.0.2.1:8080">>},
-		{<<"192.0.2.1\n80">>, <<"192.0.2.1">>},
-		{<<"[2001:db8::1]\n8080">>, <<"[2001:db8::1]:8080">>},
-		{<<"[2001:db8::1]\n80">>, <<"[2001:db8::1]">>},
-		{<<"[::ffff:192.0.2.1]\n8080">>, <<"[::ffff:192.0.2.1]:8080">>},
-		{<<"[::ffff:192.0.2.1]\n80">>, <<"[::ffff:192.0.2.1]">>}
+		{<<"example.org\n8080">>, <<"http://example.org:8080">>},
+		{<<"example.org\n443">>, <<"https://example.org">>},
+		{<<"192.0.2.1\n8080">>, <<"http://192.0.2.1:8080">>},
+		{<<"192.0.2.1\n80">>, <<"http://192.0.2.1">>},
+		{<<"[2001:db8::1]\n8080">>, <<"http://[2001:db8::1]:8080">>},
+		{<<"[2001:db8::1]\n80">>, <<"http://[2001:db8::1]">>},
+		{<<"[::ffff:192.0.2.1]\n8080">>, <<"http://[::ffff:192.0.2.1]:8080">>},
+		{<<"[::ffff:192.0.2.1]\n80">>, <<"http://[::ffff:192.0.2.1]">>}
 	],
 	[begin
 		Client = ?config(client, Config),
 		{ok, Client2} = cowboyku_client:request(<<"GET">>,
-			build_url("/req_attr?attr=host_and_port", Config),
+			build_url("/req_attr?attr=scheme_and_host_and_port", Config),
 			[{<<"host">>, Host}],
 			Client),
 		{ok, 200, _, Client3} = cowboyku_client:response(Client2),
