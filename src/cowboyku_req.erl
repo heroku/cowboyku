@@ -46,7 +46,7 @@
 -define(POLL_INTERVAL, 1000).
 
 %% Request API.
--export([new/14]).
+-export([new/15]).
 -export([method/1]).
 -export([version/1]).
 -export([peer/1]).
@@ -60,6 +60,7 @@
 -export([qs_val/3]).
 -export([qs_vals/1]).
 -export([host_url/1]).
+-export([scheme/1]).
 -export([url/1]).
 -export([binding/2]).
 -export([binding/3]).
@@ -149,6 +150,7 @@
 	method = <<"GET">> :: binary(),
 	version = 'HTTP/1.1' :: cowboyku:http_version(),
 	peer = undefined :: undefined | {inet:ip_address(), inet:port_number()},
+	scheme = undefined :: undefined | binary(),
 	host = undefined :: undefined | binary(),
 	host_info = undefined :: undefined | cowboyku_router:tokens(),
 	port = undefined :: undefined | inet:port_number(),
@@ -197,16 +199,16 @@
 -spec new(any(), module(),
 	undefined | {inet:ip_address(), inet:port_number()},
 	binary(), binary(), binary(),
-	cowboyku:http_version(), cowboyku:http_headers(), binary(),
+	cowboyku:http_version(), cowboyku:http_headers(), binary(), binary(),
 	inet:port_number() | undefined, binary(), boolean(), boolean(),
 	undefined | cowboyku:onresponse_fun())
 	-> req().
 new(Socket, Transport, Peer, Method, Path, Query,
-		Version, Headers, Host, Port, Buffer, CanKeepalive,
+		Version, Headers, Scheme, Host, Port, Buffer, CanKeepalive,
 		Compress, OnResponse) ->
 	Req = #http_req{socket=Socket, transport=Transport, pid=self(), peer=Peer,
 		method=Method, path=Path, qs=Query, version=Version,
-		headers=Headers, host=Host, port=Port, buffer=Buffer,
+		headers=Headers, scheme=Scheme, host=Host, port=Port, buffer=Buffer,
 		resp_compress=Compress, onresponse=OnResponse},
 	case CanKeepalive of
 		false ->
@@ -230,6 +232,11 @@ new(Socket, Transport, Peer, Method, Path, Query,
 -spec method(Req) -> {binary(), Req} when Req::req().
 method(Req) ->
 	{Req#http_req.method, Req}.
+
+%% @doc Return the scheme of the request.
+-spec scheme(Req) -> {binary(), Req} when Req::req().
+scheme(Req) ->
+	{Req#http_req.scheme, Req}.
 
 %% @doc Return the HTTP version used for the request.
 -spec version(Req) -> {cowboyku:http_version(), Req} when Req::req().
@@ -1229,6 +1236,7 @@ g(resp_body, #http_req{resp_body=Ret}) -> Ret;
 g(resp_compress, #http_req{resp_compress=Ret}) -> Ret;
 g(resp_headers, #http_req{resp_headers=Ret}) -> Ret;
 g(resp_state, #http_req{resp_state=Ret}) -> Ret;
+g(scheme, #http_req{scheme=Ret}) -> Ret;
 g(socket, #http_req{socket=Ret}) -> Ret;
 g(transport, #http_req{transport=Ret}) -> Ret;
 g(version, #http_req{version=Ret}) -> Ret.
@@ -1259,6 +1267,7 @@ set([{qs_vals, Val}|Tail], Req) -> set(Tail, Req#http_req{qs_vals=Val});
 set([{resp_body, Val}|Tail], Req) -> set(Tail, Req#http_req{resp_body=Val});
 set([{resp_headers, Val}|Tail], Req) -> set(Tail, Req#http_req{resp_headers=Val});
 set([{resp_state, Val}|Tail], Req) -> set(Tail, Req#http_req{resp_state=Val});
+set([{scheme, Val}|Tail], Req) -> set(Tail, Req#http_req{scheme=Val});
 set([{socket, Val}|Tail], Req) -> set(Tail, Req#http_req{socket=Val});
 set([{transport, Val}|Tail], Req) -> set(Tail, Req#http_req{transport=Val});
 set([{version, Val}|Tail], Req) -> set(Tail, Req#http_req{version=Val}).
