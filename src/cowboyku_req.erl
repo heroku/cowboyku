@@ -160,7 +160,7 @@
 	headers = [] :: cowboyku:http_headers(),
 	p_headers = [] :: [any()], %% @todo Improve those specs.
 	cookies = undefined :: undefined | [{binary(), binary()}],
-	meta = [] :: [{atom(), any()}],
+	meta = #{} :: #{atom() => any()},
 
 	%% Request body.
 	body_state = waiting :: waiting | done | {stream, non_neg_integer(),
@@ -537,9 +537,9 @@ meta(Name, Req) ->
 %% indicate which media type, language and charset were retained.
 -spec meta(atom(), Req, any()) -> {any(), Req} when Req::req().
 meta(Name, Req, Default) ->
-	case lists:keyfind(Name, 1, Req#http_req.meta) of
-		{Name, Value} -> {Value, Req};
-		false -> {Default, Req}
+	case maps:find(Name, Req#http_req.meta) of
+		{ok, Value} -> {Value, Req};
+		error -> {Default, Req}
 	end.
 
 %% @doc Set metadata information.
@@ -549,7 +549,7 @@ meta(Name, Req, Default) ->
 %% If the value already exists it will be overwritten.
 -spec set_meta(atom(), any(), Req) -> Req when Req::req().
 set_meta(Name, Value, Req=#http_req{meta=Meta}) ->
-	Req#http_req{meta=[{Name, Value}|lists:keydelete(Name, 1, Meta)]}.
+	Req#http_req{meta=Meta#{Name => Value}}.
 
 %% Request Body API.
 
